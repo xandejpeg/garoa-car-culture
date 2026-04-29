@@ -1,0 +1,16 @@
+# Roblox/Rojo generated files
+*.rbxl
+*.rbxlx
+
+# Rojo build output
+build/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# VS Code local settings
+.vscode/settings.json
+
+# Logs
+*.log

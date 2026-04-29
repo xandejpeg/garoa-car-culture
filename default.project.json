@@ -1,0 +1,32 @@
+{
+  "name": "GaroaCarCulture",
+  "tree": {
+    "$className": "DataModel",
+
+    "StarterPlayer": {
+      "$className": "StarterPlayer",
+      "StarterPlayerScripts": {
+        "$className": "StarterPlayerScripts",
+        "$path": "src/client"
+      }
+    },
+
+    "ServerScriptService": {
+      "$className": "ServerScriptService",
+      "$path": "src/server"
+    },
+
+    "ReplicatedStorage": {
+      "$className": "ReplicatedStorage",
+      "Shared": {
+        "$path": "src/shared"
+      },
+      "Vehicles": {
+        "$className": "Folder",
+        "TestCar": {
+          "$path": "assets/A-Chassis.1.7.2.rbxm"
+        }
+      }
+    }
+  }
+}
