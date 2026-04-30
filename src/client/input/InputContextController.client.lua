@@ -14,10 +14,12 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ContextActionService = game:GetService("ContextActionService")
 
 local InputConfig           = require(ReplicatedStorage.Shared.config.InputConfig)
 local OnFootInputController = require(script.Parent.OnFootInputController)
 local VehicleInputController = require(script.Parent.VehicleInputController)
+local AChassisAdapter       = require(script.Parent.Parent.vehicle.AChassisAdapter)
 
 -- CameraController é opcional — carrega só se existir
 local CameraController = nil
@@ -34,6 +36,7 @@ end
 
 local currentContext = InputConfig.Context.OnFoot
 local player = Players.LocalPlayer
+local _activeAdapter = nil  -- adapter atual, acessível pelo callback do CAS
 
 -- ============================================================
 -- TROCA DE CONTEXTO
@@ -45,16 +48,43 @@ local function switchToVehicle(seat)
 
     OnFootInputController.disable()
 
+    -- Cria e ativa o adapter
+    local carModel = seat and seat.Parent
+    local adapter = AChassisAdapter.new()
+    if carModel then
+        adapter:enable(carModel)
+    end
+    _activeAdapter = adapter
+
     -- Senta o player no VehicleSeat
-    -- O Roblox move o personagem automaticamente
     if seat then
-        seat:Sit(player.Character and player.Character:FindFirstChild("Humanoid"))
+        local humanoid = player.Character and player.Character:FindFirstChild("Humanoid")
+        seat:Sit(humanoid)
     end
 
-    VehicleInputController.enable(seat)
+    -- Bind Space com prioridade ALTA: intercepta antes dos scripts de personagem e do VehicleSeat.
+    -- Handbrake é ativado aqui diretamente. Input é sunk → nada mais recebe o Space.
+    ContextActionService:BindActionAtPriority(
+        "GCC_SpaceInVehicle",
+        function(_, state, _)
+            if state == Enum.UserInputState.Begin then
+                if _activeAdapter then _activeAdapter:setHandbrake(true) end
+            elseif state == Enum.UserInputState.End then
+                if _activeAdapter then _activeAdapter:setHandbrake(false) end
+            end
+            return Enum.ContextActionResult.Sink
+        end,
+        false,
+        Enum.ContextActionPriority.High.Value,
+        Enum.KeyCode.Space
+    )
+
+    VehicleInputController.enable(seat, adapter)
 
     if CameraController then
-        CameraController.setMode("follow")
+        -- Passa o PrimaryPart/HumanoidRootPart do carro para a chase camera
+        local carRoot = seat and seat.Parent and seat.Parent.PrimaryPart
+        CameraController.setMode("chase", carRoot or seat)
     end
 
     print("[InputContextController] → Vehicle")
@@ -68,12 +98,16 @@ local function switchToOnFoot()
     local seat = VehicleInputController.getCurrentSeat()
 
     VehicleInputController.disable()
+    _activeAdapter = nil
+
+    ContextActionService:UnbindAction("GCC_SpaceInVehicle")
 
     -- Levanta o player do seat
     local character = player.Character
     if character then
         local humanoid = character:FindFirstChild("Humanoid")
         if humanoid then
+            humanoid:SetStateEnabled(Enum.HumanoidStateType.Jumping, true)  -- restaura pulo
             humanoid.Sit = false
         end
 

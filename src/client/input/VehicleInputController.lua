@@ -90,8 +90,8 @@ function VehicleInputController.enable(seat, adapter)
     -- Loop de input (para gamepad analógico em M004)
     _connections.heartbeat = RunService.Heartbeat:Connect(inputLoop)
 
-    -- Detectar F para sair do carro
-    _connections.exit = UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    -- Detectar teclas de ação no carro
+    _connections.inputBegan = UserInputService.InputBegan:Connect(function(input, gameProcessed)
         if gameProcessed then return end
         if input.KeyCode == InputConfig.Keyboard.ExitVehicle then
             if _onExitVehicleRequest then _onExitVehicleRequest() end
@@ -101,6 +101,7 @@ function VehicleInputController.enable(seat, adapter)
             if _adapter then _adapter:shiftDown() end
         end
     end)
+    -- Space/Handbrake é tratado diretamente no InputContextController via ContextActionService
 
     print("[VehicleInputController] enabled — seat:", seat and seat:GetFullName() or "nil")
     if adapter then

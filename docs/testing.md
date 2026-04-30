@@ -82,6 +82,92 @@ Dirigir em alta velocidade em uma rodovia com NPCs de tráfego simples.
 
 ---
 
+---
+
+## Teste M003.5 — Pista de Teste (TestTrackBuilder) ✅ Liberado
+
+### Objetivo
+
+Testar o feeling do A-Chassis em uma pista real com curvas, reta longa e área de drift.
+
+### Como ativar
+
+`TestTrackBuilder.server.lua` roda automaticamente ao iniciar Play.  
+A pista é gerada em `Workspace.TestTrack`.
+
+### Critério de sucesso
+
+- Pista gera sem erro
+- Carro percorre reta + curva ampla
+- Handbrake tem efeito na área de drift
+- Sem capota frequente
+
+### Checklist completo
+
+Ver [docs/milestone-003-5-test-track.md](milestone-003-5-test-track.md)
+
+---
+
+## Teste M003.6 — Paulista Prototype ⏳ Liberado
+
+### Objetivo
+
+Testar o carro A-Chassis em um ambiente urbano simbólico inspirado na Av. Paulista.
+
+### Como ativar
+
+`PaulistaPrototypeBuilder.server.lua` roda automaticamente ao iniciar Play.  
+Gera `Workspace.PaulistaPrototype`.  
+`TestTrackBuilder` é suprimido automaticamente quando Paulista está presente.
+
+### Critério de sucesso
+
+- Ambiente gera sem erro
+- Carro anda pela avenida
+- Ambiente mais motivante que pista sintética
+- Câmera funciona entre prédios
+
+### Checklist completo
+
+Ver [docs/milestone-003-6-paulista-prototype.md](milestone-003-6-paulista-prototype.md)
+
+---
+
+## Teste M003.7 — Chase Camera / Feeling Visual ✅ PASSOU 29/04/2026
+
+### Objetivo
+
+Chase camera com suavização, distância e FOV dinâmicos por velocidade.
+
+### Resultado
+
+Câmera funcional, feeling melhorado. Aprovado.
+
+---
+
+## Teste M003.8 — HUD básico de carro ⏳ Liberado
+
+### Objetivo
+
+Velocímetro (km/h), marcha, handbrake indicator no canto da tela ao entrar no carro.
+
+### Como ativar
+
+`VehicleHUD.show(carRoot)` é chamado automaticamente ao entrar no carro via InputContextController.  
+`VehicleHUD.hide()` é chamado ao sair.  
+Configuração em `src/shared/config/UIConfig.lua`.
+
+### Critério de sucesso
+
+- HUD aparece ao entrar no carro
+- Velocidade sobe ao acelerar
+- Marcha muda com Q/Z (se A-Chassis expuser Values.Gear)
+- "HB" aparece quando Space é pressionado
+- HUD some ao sair do carro (F)
+- Sem erros vermelhos
+
+---
+
 ## Registro de resultados
 
 Os resultados de cada teste devem ser salvos em:

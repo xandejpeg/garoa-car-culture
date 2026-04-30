@@ -18,7 +18,9 @@ local Players = game:GetService("Players")
 -- CONFIGURAÇÃO
 -- ============================================================
 
-local SPAWN_CFRAME = CFrame.new(0, 3, 20)   -- posição no mapa
+-- M003.6: spawn na faixa direita da Paulista Prototype
+-- X = DIVIDER_W/2 + LANE_W*1.5 = 2.5 + 6.75 = 9.25, Z = 35
+local SPAWN_CFRAME = CFrame.new(9.25, 3, 35)   -- posição no mapa
 
 -- Pasta que deve conter os modelos de carro em ReplicatedStorage
 local VEHICLES_FOLDER_NAME = "Vehicles"

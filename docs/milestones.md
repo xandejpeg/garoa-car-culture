@@ -1,8 +1,8 @@
 # Milestones — Garoa Car Culture
 
-**Versão:** V6  
-**Baseado em:** MD Master V5 + decisão arquitetural 009 (A-Chassis)  
-**Atualizado:** 2026-04-28
+**Versão:** V14  
+**Baseado em:** MD Master V5 + decisão arquitetural 009 (A-Chassis) + 017 (Paulista Prototype) + 019 (câmera/feeling) + 025 (tire smoke) + 026 (drift score) + 028 (M008-lite passou)  
+**Atualizado:** 2026-04-30
 
 ---
 
@@ -13,12 +13,21 @@
 | M000 | Setup e estrutura | ✅ Concluído |
 | M001 | Input Test + Diagnóstico | ✅ Concluído estruturalmente |
 | M002 | Carro placeholder por teclado + On-foot | ✅ Concluído estruturalmente |
-| M003 | Pesquisa + Protótipo mínimo A-Chassis | 🔄 Em andamento |
+| M003 | A-Chassis integrado | ✅ PASSOU 29/04/2026 |
+| M003.5 | Test Track sintético | ✅ PASSOU 29/04/2026 |
+| M003.6 | Avenida Paulista Prototype | ✅ PASSOU 29/04/2026 |
+| M003.7 | Chase Camera / Feeling Visual | ✅ PASSOU 29/04/2026 |
+| M003.8 | HUD básico de carro | ✅ PASSOU 29/04/2026 |
+| M006-lite | Drift/Handbrake Feeling Inicial | ✅ PASSOU 29/04/2026 |
+| M006.5 | Vehicle Audio | ❌ Cancelado — A-Chassis já tem áudio nativo |
+| M006.6 | Tire Smoke / Drift Particles | ✅ PASSOU 29/04/2026 |
+| M008-lite | Score/Dinheiro básico de drift | ✅ PASSOU 30/04/2026 |
 | M004 | Gamepad/x360ce com A-Chassis | 🔒 Bloqueado |
 | M005 | Feeling inicial + câmera | 🔒 Bloqueado |
 | M006 | Drift básico + handbrake | 🔒 Bloqueado |
-| M007 | Garagem simples | 🔒 Bloqueado |
+| M007 | Garagem simples | ⏳ Em implementação |
 | M008 | No Hesi loop + Dinheiro básico | 🔒 Bloqueado |
+| M008+ | **Paulista real** (OSM, Meshy, assets BR) | 🔒 Bloqueado — futuro |
 | M009 | Rodovia MVP + Tráfego simples | 🔒 Bloqueado |
 | M010 | G29 avançado + RoWheel Bridge | 🔒 Bloqueado |
 | M011 | Expansão (cidade, hub, portais) | 🔒 Bloqueado |
@@ -83,41 +92,100 @@
 
 ---
 
-## M003 — Pesquisa + Protótipo mínimo A-Chassis 🔄
-
-**Desbloqueado:** M002 concluída estruturalmente.
+## M003 — A-Chassis integrado ✅ PASSOU 29/04/2026
 
 **Objetivo:** integrar A-Chassis como base de física, carro se movendo com teclado.
 
-**Escopo:**
-- Estudar estrutura do A-Chassis (`github.com/lisphm/A-Chassis`)
-- Importar A-Chassis para o projeto via Rojo
-- Criar `VehicleControlAdapter` e `AChassisAdapter`
-- Refatorar `VehicleInputController` para usar adapter (não mais VehicleSeat direto)
-- Spawnar carro A-Chassis mínimo no mapa
-- Testar: entrar → dirigir com WASD → sair
-- Documentar API de input do A-Chassis
+**Resultado:** todos os checks aprovados. A-Chassis v1.7.2 funcional, entrada/saída/câmera OK.
 
-**Não fazer na M003:**
-- Drift final
-- Câmbio manual
-- Gamepad/G29
-- Garagem, tuning profundo, multiplayer
+---
 
-**Ver:** `docs/a-chassis-integration-plan.md`, `docs/open-source-research.md`
+## M003.5 — Test Track sintético ✅ PASSOU 29/04/2026
 
-**Critério de sucesso:**
-- Carro A-Chassis se move com WASD
-- Física real visível (inércia, peso)
-- Entrada/saída funcionam
-- Câmera segue o carro
-- Sem erros no Output
+**Objetivo:** pista de teste programática para sentir física do A-Chassis.
+
+**Resultado:** pista apareceu, carro rodou. Feeling OK. Usuário pediu ambiente urbano SP.
+
+---
+
+## M003.6 — Avenida Paulista Prototype ✅ PASSOU 29/04/2026
+
+**Objetivo:** ambiente urbano mínimo simbólico inspirado na Av. Paulista.
+
+**Não é a Paulista real** — protótipo motivacional para testar carro em contexto urbano SP.
+
+**Entregue:**
+- `src/server/services/PaulistaPrototypeBuilder.server.lua`
+- `docs/milestone-003-6-paulista-prototype.md`
+
+**Ver:** `docs/milestone-003-6-paulista-prototype.md`
+
+---
+
+## M003.7 — Chase Camera / Feeling Visual ⏳
+
+**Desbloqueado quando:** M003.6 testada e aprovada. ✅
+
+**Objetivo:** substituir câmera básica por chase camera com suavização, FOV e distância dinâmicos por velocidade.
+
+**Entregue (planejamento):**
+- `src/shared/config/CameraConfig.lua` ✅ criado
+- `docs/milestone-003-7-chase-camera.md` ✅ criado
+- `src/client/camera/CameraController.lua` — a alterar na implementação
+
+**Ver:** `docs/milestone-003-7-chase-camera.md`
+
+---
+
+## M003.8 — HUD básico de carro 🔒
+
+**Desbloqueado quando:** M003.7 testada.
+
+**Objetivo:** velocímetro, marcha, handbrake indicator. Sem UI final.
+
+**Criar:**
+- `src/client/ui/VehicleHUD.client.lua`
+- `src/shared/config/UIConfig.lua`
+- `docs/milestone-003-8-vehicle-hud.md`
+
+---
+
+## M006-lite — Drift/Handbrake Feeling Inicial ⏳
+
+**Desbloqueado quando:** M003.8 testada. ✅
+
+**Objetivo:** ajuste de handbrake + oversteer básico no A-Chassis. Sem drift scoring.
+
+**Entregue:**
+- `src/server/services/DriftTuneService.server.lua` ✅
+
+**Valores ajustados:**
+- `RearGrip 1.0 → 0.45` (oversteer)
+- `FrontGrip 1.0 → 0.85`
+- `PBrakeForce 1.0 → 3.0` (handbrake agressivo)
+- `Steer 35 → 45` (mais ângulo)
+- `FrontBias 0.0 / RearBias 1.0` (RWD puro)
+
+---
+
+## FUTURO — Avenida Paulista real (M008+)
+
+> O usuário quer ver no futuro uma Avenida Paulista mais fiel. Isso está registrado como objetivo futuro.
+
+Ferramentas planejadas:
+- Plugin **OSM To Roblox** (ruas reais + volumetria de prédios)
+- **Meshy** / Blender para prédios customizados
+- Assets Toolbox brasileiros (Brazil City, Posto Ipiranga, sinalização)
+- Semáforos, tráfego, pedestres, cruzamentos
+- Iluminação noturna, atmosfera real de SP
+
+**Não implementar antes de M004, M005, M006.**
 
 ---
 
 ## M004 — Gamepad/x360ce com A-Chassis 🔒
 
-**Desbloqueado quando:** M003 validado (carro A-Chassis funcional por teclado).
+**Desbloqueado quando:** M003.6 validado.
 
 **Objetivo:** input de gamepad via x360ce funcionando no A-Chassis.
 

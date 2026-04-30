@@ -1,17 +1,22 @@
 -- =============================================================
 -- GAROA CAR CULTURE — CameraController
--- Câmera básica para M002
+-- Chase Camera — M003.7
 -- =============================================================
 -- Modos disponíveis:
 --   "default" → câmera padrão Roblox (personagem a pé)
---   "follow"  → câmera segue o carro (terceira pessoa)
+--   "chase"   → chase camera com suavização + FOV/distância dinâmicos
 --
--- M002: só precisa que câmera siga o carro ao entrar.
--- Câmeras avançadas (cockpit, cinemática) → milestones futuras.
+-- API:
+--   CameraController.setMode("default")
+--   CameraController.setMode("chase", carRootPart)
+--   CameraController.getMode()
 -- =============================================================
 
-local Players = game:GetService("Players")
+local Players   = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local CameraConfig = require(ReplicatedStorage.Shared.config.CameraConfig)
 
 -- ============================================================
 -- MÓDULO
@@ -20,62 +25,71 @@ local RunService = game:GetService("RunService")
 local CameraController = {}
 
 local camera = workspace.CurrentCamera
-local player = Players.LocalPlayer
-
-local _mode = "default"
+local _mode       = "default"
 local _connection = nil
-
--- Configuração da câmera "follow"
-local FOLLOW_DISTANCE = 20    -- distância atrás do carro
-local FOLLOW_HEIGHT   = 8     -- altura acima do carro
-local FOLLOW_SMOOTHING = 0.1  -- lerp factor (0 = imediato, 1 = muito suave)
+local _carRoot    = nil  -- BasePart passada ao entrar no carro
 
 -- ============================================================
--- MODOS
+-- MODO PADRÃO (on-foot)
 -- ============================================================
 
 local function setDefaultCamera()
-    camera.CameraType = Enum.CameraType.Custom
-    -- Roblox restaura automaticamente o follow do personagem
-    -- quando CameraType = Custom e há personagem vivo
     if _connection then
         _connection:Disconnect()
         _connection = nil
     end
+    _carRoot = nil
+    camera.CameraType    = Enum.CameraType.Custom
+    camera.FieldOfView   = CameraConfig.BaseFOV
 end
 
-local function setFollowCamera()
-    camera.CameraType = Enum.CameraType.Scriptable
+-- ============================================================
+-- MODO CHASE
+-- ============================================================
+
+local function setChaseCamera(carRoot)
+    _carRoot = carRoot
 
     if _connection then
         _connection:Disconnect()
         _connection = nil
     end
 
+    camera.CameraType = Enum.CameraType.Scriptable
+
     _connection = RunService.RenderStepped:Connect(function()
-        local car = workspace:FindFirstChild("CarPlaceholder")
-        if not car then
-            -- Se o carro sumiu, volta para câmera padrão
+        if not _carRoot or not _carRoot.Parent then
             setDefaultCamera()
             return
         end
 
-        local body = car:FindFirstChild("Body")
-        if not body then return end
+        local cfg = CameraConfig
+        local carCF  = _carRoot.CFrame
+        local speed  = _carRoot.AssemblyLinearVelocity.Magnitude
 
-        local carCFrame = body.CFrame
+        -- Distância e FOV dinâmicos por velocidade
+        local dist = math.clamp(
+            cfg.BaseDistance + speed * cfg.SpeedDistanceMultiplier,
+            cfg.BaseDistance, cfg.MaxDistance
+        )
+        local fov = math.clamp(
+            cfg.BaseFOV + speed * cfg.FOVSpeedMultiplier,
+            cfg.BaseFOV, cfg.MaxFOV
+        )
 
-        -- Calcula posição desejada: atrás e acima do carro
-        local targetPosition = carCFrame.Position
-            - carCFrame.LookVector * FOLLOW_DISTANCE
-            + Vector3.new(0, FOLLOW_HEIGHT, 0)
+        -- Posição desejada: atrás e acima do carro (espaço local → mundo)
+        local desiredPos = carCF.Position
+            - carCF.LookVector * dist
+            + Vector3.new(0, cfg.BaseHeight, 0)
 
-        -- Lerp suave da posição atual para a desejada
-        local currentPosition = camera.CFrame.Position
-        local smoothedPosition = currentPosition:Lerp(targetPosition, FOLLOW_SMOOTHING)
+        -- Suavização da posição
+        local smoothPos = camera.CFrame.Position:Lerp(desiredPos, cfg.Smoothness)
 
-        -- Câmera olha para o carro
-        camera.CFrame = CFrame.lookAt(smoothedPosition, carCFrame.Position + Vector3.new(0, 1, 0))
+        -- Look-at: frente do carro com look-ahead
+        local lookAt = carCF.Position + carCF.LookVector * cfg.LookAheadDistance
+
+        camera.CFrame      = CFrame.lookAt(smoothPos, lookAt)
+        camera.FieldOfView = fov
     end)
 end
 
@@ -83,11 +97,11 @@ end
 -- FUNÇÕES PÚBLICAS
 -- ============================================================
 
-function CameraController.setMode(mode)
+function CameraController.setMode(mode, carRoot)
     _mode = mode
 
-    if mode == "follow" then
-        setFollowCamera()
+    if mode == "chase" and carRoot then
+        setChaseCamera(carRoot)
     else
         setDefaultCamera()
     end

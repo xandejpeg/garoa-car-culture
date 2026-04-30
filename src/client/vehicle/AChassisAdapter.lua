@@ -186,13 +186,29 @@ end
 	Toggle do freio de mão. A-Chassis usa Begin = toggle, End = libera se em movimento.
 --]]
 function AChassisAdapter:setHandbrake(active: boolean)
-	if not self._enabled or not self._virtualInput then return end
+	-- Tenta encontrar VirtualInput agora (late binding — resolve problema de timing)
+	if not self._virtualInput then
+		local vi = _findVirtualInput()
+		if vi then
+			self._virtualInput = vi
+			self._enabled = true
+			print("[AChassisAdapter] VirtualInput encontrado no setHandbrake")
+		end
+	end
+
+	if not self._virtualInput then
+		warn("[AChassisAdapter] setHandbrake: VirtualInput não encontrado")
+		return
+	end
+
+	-- A-Chassis usa teclado "P" como PBrake — envia via VirtualInput como keyboard
 	self._virtualInput:Fire(_makeInput(
-		BUTTON_PBRAKE,
-		GAMEPAD_TYPE,
+		Enum.KeyCode.P,
+		Enum.UserInputType.Keyboard,
 		active and Enum.UserInputState.Begin or Enum.UserInputState.End,
 		Vector3.new(0, 0, 0)
 	))
+	print("[AChassisAdapter] setHandbrake:", active)
 end
 
 --[[
