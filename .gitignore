@@ -7,6 +7,7 @@ build/
 
 # Local tool installs/downloads
 .tools/
+IMPORTAR_NO_ROBLOX/
 
 # OS
 .DS_Store

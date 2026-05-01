@@ -1,6 +1,6 @@
 param(
     [string]$Project = "default.project.json",
-    [int]$Port = 34873
+    [int]$Port = 34872
 )
 
 $ErrorActionPreference = "Stop"
