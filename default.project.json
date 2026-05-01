@@ -27,6 +27,9 @@
         "TestCar": {
           "$path": "assets/A-Chassis.1.7.2.rbxm"
         }
+      },
+      "VehicleAssets": {
+        "$path": "assets/vehicles"
       }
     }
   }
