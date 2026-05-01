@@ -13,6 +13,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
 
 -- ============================================================
 -- CONFIGURAÇÃO
@@ -21,10 +22,60 @@ local Players = game:GetService("Players")
 -- M003.6: spawn na faixa direita da Paulista Prototype
 -- X = DIVIDER_W/2 + LANE_W*1.5 = 2.5 + 6.75 = 9.25, Z = 35
 local SPAWN_CFRAME = CFrame.new(9.25, 3, 35)   -- posição no mapa
+local PLAYER_SPAWN_CFRAME = CFrame.new(9.25, 1.3, 20)
 
 -- Pasta que deve conter os modelos de carro em ReplicatedStorage
 local VEHICLES_FOLDER_NAME = "Vehicles"
 local DEFAULT_VEHICLE_NAME = "TestCar"
+local PLACEHOLDER_VEHICLE_NAME = "CarPlaceholder"
+local PLAYER_SPAWN_NAME = "GaroaPlayerSpawn"
+local VEHICLE_MARKER_NAME = "GaroaVehicleSpawnMarker"
+
+local function ensurePlayerSpawnLocation()
+    local existing = Workspace:FindFirstChild(PLAYER_SPAWN_NAME)
+    if existing then
+        return existing
+    end
+
+    local spawnLocation = Instance.new("SpawnLocation")
+    spawnLocation.Name = PLAYER_SPAWN_NAME
+    spawnLocation.Size = Vector3.new(8, 1, 8)
+    spawnLocation.CFrame = PLAYER_SPAWN_CFRAME
+    spawnLocation.Anchored = true
+    spawnLocation.Neutral = true
+    spawnLocation.Duration = 0
+    spawnLocation.Color = Color3.fromRGB(80, 220, 120)
+    spawnLocation.Material = Enum.Material.Neon
+    spawnLocation.TopSurface = Enum.SurfaceType.Smooth
+    spawnLocation.BottomSurface = Enum.SurfaceType.Smooth
+    spawnLocation.Parent = Workspace
+
+    return spawnLocation
+end
+
+local function ensureVehicleSpawnMarker()
+    local existing = Workspace:FindFirstChild(VEHICLE_MARKER_NAME)
+    if existing then
+        return existing
+    end
+
+    local marker = Instance.new("Part")
+    marker.Name = VEHICLE_MARKER_NAME
+    marker.Size = Vector3.new(2, 10, 2)
+    marker.CFrame = SPAWN_CFRAME + Vector3.new(0, 6, 0)
+    marker.Anchored = true
+    marker.CanCollide = false
+    marker.Transparency = 0.25
+    marker.Color = Color3.fromRGB(255, 220, 40)
+    marker.Material = Enum.Material.Neon
+    marker.Parent = Workspace
+
+    return marker
+end
+
+local function getExistingVehicle()
+    return Workspace:FindFirstChild(DEFAULT_VEHICLE_NAME) or Workspace:FindFirstChild(PLACEHOLDER_VEHICLE_NAME)
+end
 
 -- ============================================================
 -- SPAWN DE MODELO A-CHASSIS (M003+)
@@ -57,7 +108,7 @@ local function trySpawnAChassis(spawnCFrame)
     -- Posicionar via PrimaryPart (DriveSeat é a referência de posição do A-Chassis)
     car:PivotTo(spawnCFrame)
 
-    car.Parent = workspace
+    car.Parent = Workspace
     print("[VehicleSpawnService] A-Chassis spawned:", car.Name, "at", spawnCFrame.Position)
     return car
 end
@@ -77,7 +128,7 @@ local CAR_PLACEHOLDER_CONFIG = {
 
 local function buildPlaceholderCar(position)
     local carModel = Instance.new("Model")
-    carModel.Name = "CarPlaceholder"
+    carModel.Name = PLACEHOLDER_VEHICLE_NAME
 
     local body = Instance.new("Part")
     body.Name = "Body"
@@ -150,11 +201,11 @@ local function buildPlaceholderCar(position)
 end
 
 local function spawnPlaceholderCar()
-    local existing = workspace:FindFirstChild("CarPlaceholder")
+    local existing = Workspace:FindFirstChild(PLACEHOLDER_VEHICLE_NAME)
     if existing then existing:Destroy() end
 
     local car = buildPlaceholderCar(SPAWN_CFRAME.Position)
-    car.Parent = workspace
+    car.Parent = Workspace
     print("[VehicleSpawnService] CarPlaceholder (fallback M002) spawned")
     return car
 end
@@ -163,12 +214,17 @@ end
 -- SPAWN PRINCIPAL
 -- ============================================================
 
-local function spawnDefaultCar()
+local function spawnDefaultCar(reason)
+    ensurePlayerSpawnLocation()
+    ensureVehicleSpawnMarker()
+
     -- Remover instâncias anteriores
-    local existing = workspace:FindFirstChild(DEFAULT_VEHICLE_NAME)
+    local existing = Workspace:FindFirstChild(DEFAULT_VEHICLE_NAME)
     if existing then existing:Destroy() end
-    local existingPlaceholder = workspace:FindFirstChild("CarPlaceholder")
+    local existingPlaceholder = Workspace:FindFirstChild(PLACEHOLDER_VEHICLE_NAME)
     if existingPlaceholder then existingPlaceholder:Destroy() end
+
+    print("[VehicleSpawnService] Spawning default car", reason or "startup")
 
     -- Tentar A-Chassis primeiro
     local car = trySpawnAChassis(SPAWN_CFRAME)
@@ -183,5 +239,33 @@ local function spawnDefaultCar()
 end
 
 -- Spawna ao iniciar o servidor
-spawnDefaultCar()
+spawnDefaultCar("startup")
+
+-- Em sessões com Rojo, o servidor pode começar antes de tudo estar sincronizado.
+-- Esses retries tornam o carro visível mesmo quando o usuário conecta Rojo e aperta Play em seguida.
+task.delay(2, function()
+    if not getExistingVehicle() then
+        spawnDefaultCar("delayed-retry")
+    end
+end)
+
+Players.PlayerAdded:Connect(function(player)
+    player.CharacterAdded:Connect(function()
+        task.delay(1, function()
+            if not getExistingVehicle() then
+                spawnDefaultCar("player-joined")
+            end
+        end)
+    end)
+end)
+
+for _, player in ipairs(Players:GetPlayers()) do
+    if player.Character then
+        task.delay(1, function()
+            if not getExistingVehicle() then
+                spawnDefaultCar("existing-player")
+            end
+        end)
+    end
+end
 
