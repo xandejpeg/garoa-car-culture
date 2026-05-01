@@ -5,6 +5,9 @@
 # Rojo build output
 build/
 
+# Local tool installs/downloads
+.tools/
+
 # OS
 .DS_Store
 Thumbs.db
