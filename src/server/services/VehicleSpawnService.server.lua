@@ -77,6 +77,92 @@ local function getExistingVehicle()
     return Workspace:FindFirstChild(DEFAULT_VEHICLE_NAME) or Workspace:FindFirstChild(PLACEHOLDER_VEHICLE_NAME)
 end
 
+local function addBmwM4CslVisual(car)
+    local driveSeat = car:FindFirstChild("DriveSeat")
+    if not driveSeat or not driveSeat:IsA("BasePart") then
+        return
+    end
+
+    local existing = car:FindFirstChild("BMW_M4CSL_Visual")
+    if existing then
+        existing:Destroy()
+    end
+
+    local misc = car:FindFirstChild("Misc")
+    local originalBody = misc and misc:FindFirstChild("Body")
+    if originalBody then
+        for _, descendant in ipairs(originalBody:GetDescendants()) do
+            if descendant:IsA("BasePart") and descendant.Name ~= "Engine" and descendant.Name ~= "Transmission" and descendant.Name ~= "Exhaust" then
+                descendant.Transparency = 1
+                descendant.CanCollide = false
+            end
+        end
+    end
+
+    local visual = Instance.new("Model")
+    visual.Name = "BMW_M4CSL_Visual"
+    visual.Parent = car
+
+    local function addPart(name, size, localCFrame, color, material, transparency)
+        local part = Instance.new("Part")
+        part.Name = name
+        part.Size = size
+        part.CFrame = driveSeat.CFrame * localCFrame
+        part.Anchored = false
+        part.CanCollide = false
+        part.CanTouch = false
+        part.CanQuery = false
+        part.Massless = true
+        part.Color = color
+        part.Material = material or Enum.Material.SmoothPlastic
+        part.Transparency = transparency or 0
+        part.TopSurface = Enum.SurfaceType.Smooth
+        part.BottomSurface = Enum.SurfaceType.Smooth
+        part.Parent = visual
+
+        local weld = Instance.new("WeldConstraint")
+        weld.Part0 = driveSeat
+        weld.Part1 = part
+        weld.Parent = part
+
+        return part
+    end
+
+    local white = Color3.fromRGB(235, 235, 230)
+    local carbon = Color3.fromRGB(14, 15, 17)
+    local glass = Color3.fromRGB(38, 55, 70)
+    local grille = Color3.fromRGB(5, 5, 6)
+    local red = Color3.fromRGB(210, 32, 45)
+    local blue = Color3.fromRGB(25, 90, 190)
+    local cyan = Color3.fromRGB(70, 190, 255)
+
+    local mainBody = addPart("M4CSL_Body", Vector3.new(7.2, 1.15, 13.8), CFrame.new(0, 0.45, 0.2), white)
+    visual.PrimaryPart = mainBody
+
+    addPart("M4CSL_FrontBumper", Vector3.new(7.4, 0.75, 1.2), CFrame.new(0, 0.2, 7.15), white)
+    addPart("M4CSL_RearBumper", Vector3.new(7.35, 0.85, 1.1), CFrame.new(0, 0.25, -6.85), white)
+    addPart("M4CSL_HoodCarbon", Vector3.new(6.3, 0.18, 3.6), CFrame.new(0, 1.05, 4.05), carbon)
+    addPart("M4CSL_RoofCarbon", Vector3.new(5.2, 0.22, 3.6), CFrame.new(0, 2.12, -1.2), carbon)
+    addPart("M4CSL_CabinGlass", Vector3.new(4.8, 1.35, 3.9), CFrame.new(0, 1.55, -1.25), glass, Enum.Material.Glass, 0.25)
+    addPart("M4CSL_Windshield", Vector3.new(4.9, 0.1, 1.2), CFrame.new(0, 1.55, 1.05) * CFrame.Angles(math.rad(-22), 0, 0), glass, Enum.Material.Glass, 0.2)
+    addPart("M4CSL_RearWindow", Vector3.new(4.7, 0.1, 1.05), CFrame.new(0, 1.55, -3.45) * CFrame.Angles(math.rad(24), 0, 0), glass, Enum.Material.Glass, 0.2)
+    addPart("M4CSL_KidneyGrilleLeft", Vector3.new(1.15, 0.95, 0.18), CFrame.new(-0.7, 0.42, 7.82), grille)
+    addPart("M4CSL_KidneyGrilleRight", Vector3.new(1.15, 0.95, 0.18), CFrame.new(0.7, 0.42, 7.82), grille)
+    addPart("M4CSL_HeadlightLeft", Vector3.new(1.55, 0.25, 0.12), CFrame.new(-2.35, 0.68, 7.86), cyan, Enum.Material.Neon)
+    addPart("M4CSL_HeadlightRight", Vector3.new(1.55, 0.25, 0.12), CFrame.new(2.35, 0.68, 7.86), cyan, Enum.Material.Neon)
+    addPart("M4CSL_TailLightLeft", Vector3.new(1.65, 0.24, 0.12), CFrame.new(-2.2, 0.72, -7.43), red, Enum.Material.Neon)
+    addPart("M4CSL_TailLightRight", Vector3.new(1.65, 0.24, 0.12), CFrame.new(2.2, 0.72, -7.43), red, Enum.Material.Neon)
+    addPart("M4CSL_FrontSplitter", Vector3.new(7.8, 0.16, 0.85), CFrame.new(0, -0.25, 7.8), carbon)
+    addPart("M4CSL_RearWing", Vector3.new(7.2, 0.18, 0.65), CFrame.new(0, 1.5, -7.25), carbon)
+    addPart("M4CSL_WingLeftSupport", Vector3.new(0.18, 0.85, 0.18), CFrame.new(-2.35, 1.02, -7.1), carbon)
+    addPart("M4CSL_WingRightSupport", Vector3.new(0.18, 0.85, 0.18), CFrame.new(2.35, 1.02, -7.1), carbon)
+    addPart("M4CSL_MStripeBlue", Vector3.new(0.28, 0.08, 5.2), CFrame.new(-0.42, 1.18, 3.35), blue, Enum.Material.Neon)
+    addPart("M4CSL_MStripeCyan", Vector3.new(0.28, 0.08, 5.2), CFrame.new(0, 1.19, 3.35), cyan, Enum.Material.Neon)
+    addPart("M4CSL_MStripeRed", Vector3.new(0.28, 0.08, 5.2), CFrame.new(0.42, 1.18, 3.35), red, Enum.Material.Neon)
+
+    print("[VehicleSpawnService] BMW M4 CSL visual shell attached to A-Chassis")
+end
+
 -- ============================================================
 -- SPAWN DE MODELO A-CHASSIS (M003+)
 -- ============================================================
@@ -104,6 +190,7 @@ local function trySpawnAChassis(spawnCFrame)
 
     local car = template:Clone()
     car.Name = DEFAULT_VEHICLE_NAME
+    addBmwM4CslVisual(car)
 
     -- Posicionar via PrimaryPart (DriveSeat é a referência de posição do A-Chassis)
     car:PivotTo(spawnCFrame)
