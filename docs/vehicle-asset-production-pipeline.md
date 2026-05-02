@@ -39,6 +39,14 @@ Use the generated FBX only if Roblox Studio refuses the GLB.
 
 If the source model is gray, it needs Meshy Retexture. Remesh does not generate paint or texture.
 
+Before sending a local file to Meshy, validate it:
+
+```powershell
+.\tools\test-meshy-input.ps1 -Path "assets\meshy-output\bmw-m4csl\bmw-m4csl.glb"
+```
+
+Meshy Retexture accepts raw 3D model files such as `.glb`, `.gltf`, `.obj`, `.fbx`, and `.stl`. It does not accept Roblox place/model files like `.rbxlx`, `.rbxl`, `.rbxm`, or `.rbxmx`.
+
 ```powershell
 .\tools\meshy-retexture.ps1 -InputTaskId "019de201-0490-716e-9323-2c8b386ff5b9" -Name "bmw-m4csl-textured" -EnablePbr -Wait
 ```
