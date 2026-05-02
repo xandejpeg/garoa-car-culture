@@ -1133,6 +1133,11 @@
         latestMeshyTask = null;
 
         if (!meshyTaskId) throw new Error('Meshy nao retornou task id.');
+        if (!isValidMeshyTaskId(meshyTaskId)) {
+          const badTaskId = meshyTaskId;
+          meshyTaskId = null;
+          throw new Error(`Meshy retornou um task id em formato inesperado: ${badTaskId}`);
+        }
 
         appendMeshyLog(`task criada: ${meshyTaskId}`, 'ok');
         setStatus('Meshy recebeu o pedido. Cheque o status em alguns minutos.', 'ok');
@@ -1146,6 +1151,11 @@
       const taskId = meshyTaskId || $('meshyInputTaskId').value.trim();
       if (!taskId) {
         appendMeshyLog('sem task id para consultar', 'err');
+        return;
+      }
+
+      if (!isValidMeshyTaskId(taskId)) {
+        appendMeshyLog(`task id invalido: ${taskId}`, 'err');
         return;
       }
 
@@ -1166,6 +1176,10 @@
       } catch (error) {
         appendMeshyLog(error.message || String(error), 'err');
       }
+    }
+
+    function isValidMeshyTaskId(taskId) {
+      return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(taskId || '').trim());
     }
 
     async function loadMeshyResult() {
