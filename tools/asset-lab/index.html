@@ -1,0 +1,828 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Garoa Asset Lab</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #101114;
+      --panel: #181a20;
+      --panel-2: #20232b;
+      --line: #343946;
+      --text: #f1f3f7;
+      --muted: #aab1c0;
+      --accent: #ffd23f;
+      --accent-2: #5ce1e6;
+      --danger: #ff6262;
+      --ok: #70e08b;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Inter, Segoe UI, Arial, sans-serif;
+      overflow: hidden;
+    }
+
+    button, input, select, textarea {
+      font: inherit;
+    }
+
+    .app {
+      display: grid;
+      grid-template-columns: 330px minmax(360px, 1fr) 360px;
+      height: 100vh;
+      min-width: 980px;
+    }
+
+    .panel {
+      background: var(--panel);
+      border-right: 1px solid var(--line);
+      overflow: auto;
+    }
+
+    .panel.right {
+      border-right: 0;
+      border-left: 1px solid var(--line);
+    }
+
+    .panel-header {
+      position: sticky;
+      top: 0;
+      z-index: 3;
+      padding: 14px 16px;
+      background: rgba(24, 26, 32, 0.96);
+      border-bottom: 1px solid var(--line);
+    }
+
+    h1, h2, h3, p { margin: 0; }
+
+    h1 {
+      font-size: 18px;
+      letter-spacing: 0;
+    }
+
+    h2 {
+      margin-bottom: 10px;
+      font-size: 13px;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 0;
+    }
+
+    h3 {
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    .sub {
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .section {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .drop-zone {
+      display: grid;
+      place-items: center;
+      min-height: 118px;
+      padding: 14px;
+      border: 1px dashed #5b6374;
+      background: var(--panel-2);
+      text-align: center;
+    }
+
+    .drop-zone.dragging {
+      border-color: var(--accent-2);
+      background: #17262b;
+    }
+
+    .file-input {
+      width: 100%;
+      margin-top: 10px;
+      color: var(--muted);
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 96px;
+      align-items: center;
+      gap: 10px;
+      margin: 8px 0;
+    }
+
+    .row label {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    input[type="number"], input[type="text"], select, textarea {
+      width: 100%;
+      min-height: 32px;
+      padding: 6px 8px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #11131a;
+      color: var(--text);
+    }
+
+    textarea {
+      min-height: 210px;
+      resize: vertical;
+      line-height: 1.35;
+      font-family: Consolas, monospace;
+      font-size: 12px;
+    }
+
+    input[type="color"] {
+      width: 96px;
+      height: 32px;
+      padding: 2px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #11131a;
+    }
+
+    .btn-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .btn-row.three {
+      grid-template-columns: 1fr 1fr 1fr;
+    }
+
+    button {
+      min-height: 34px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #262b35;
+      color: var(--text);
+      cursor: pointer;
+    }
+
+    button:hover { border-color: var(--accent-2); }
+
+    button.primary {
+      background: var(--accent);
+      color: #131313;
+      border-color: #d8ae1e;
+      font-weight: 700;
+    }
+
+    button.danger {
+      background: #3a2024;
+      border-color: #6d333a;
+      color: #ffb0b0;
+    }
+
+    .viewer {
+      position: relative;
+      min-width: 0;
+      background: #0f1117;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    .hud {
+      position: absolute;
+      left: 14px;
+      bottom: 14px;
+      display: grid;
+      gap: 6px;
+      width: min(420px, calc(100% - 28px));
+      pointer-events: none;
+    }
+
+    .status {
+      padding: 8px 10px;
+      border: 1px solid var(--line);
+      background: rgba(16, 17, 20, 0.88);
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .status.ok { color: var(--ok); }
+    .status.warn { color: var(--accent); }
+    .status.err { color: var(--danger); }
+
+    .stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      font-size: 12px;
+    }
+
+    .stat {
+      padding: 8px;
+      background: #141720;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+    }
+
+    .stat b {
+      display: block;
+      margin-bottom: 3px;
+      color: var(--accent-2);
+      font-size: 11px;
+    }
+
+    .tree {
+      max-height: 180px;
+      overflow: auto;
+      padding: 8px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #11131a;
+      font-family: Consolas, monospace;
+      font-size: 12px;
+      line-height: 1.45;
+      color: var(--muted);
+    }
+
+    .pill {
+      display: inline-block;
+      margin: 2px 4px 2px 0;
+      padding: 2px 6px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: #11131a;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .note {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="panel">
+      <div class="panel-header">
+        <h1>Garoa Asset Lab</h1>
+        <p class="sub">Preview e preparo de modelos antes do Roblox Studio</p>
+      </div>
+
+      <section class="section">
+        <h2>Entrada</h2>
+        <div id="dropZone" class="drop-zone">
+          <div>
+            <strong>Solte um GLB, GLTF ou FBX</strong>
+            <p class="sub">Use aqui o arquivo que veio do Meshy ou o GLB preparado.</p>
+          </div>
+        </div>
+        <input id="fileInput" class="file-input" type="file" accept=".glb,.gltf,.fbx" />
+        <div class="btn-row">
+          <button id="loadColoredSample">Abrir pasta local</button>
+          <button id="resetScene">Limpar</button>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2>Transform</h2>
+        <div class="row"><label>Escala</label><input id="scale" type="number" value="1" step="0.05" /></div>
+        <div class="row"><label>Pos X</label><input id="posX" type="number" value="0" step="0.1" /></div>
+        <div class="row"><label>Pos Y</label><input id="posY" type="number" value="0" step="0.1" /></div>
+        <div class="row"><label>Pos Z</label><input id="posZ" type="number" value="0" step="0.1" /></div>
+        <div class="row"><label>Rot X</label><input id="rotX" type="number" value="0" step="5" /></div>
+        <div class="row"><label>Rot Y</label><input id="rotY" type="number" value="0" step="5" /></div>
+        <div class="row"><label>Rot Z</label><input id="rotZ" type="number" value="0" step="5" /></div>
+        <div class="btn-row three">
+          <button data-rot="0">0</button>
+          <button data-rot="90">90</button>
+          <button data-rot="-90">-90</button>
+        </div>
+        <div class="btn-row">
+          <button id="normalize">Centralizar/13 studs</button>
+          <button id="applyTransform">Aplicar</button>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2>Limpeza</h2>
+        <div class="btn-row">
+          <button id="hideWheels">Esconder rodas</button>
+          <button id="showAll">Mostrar tudo</button>
+        </div>
+        <div class="btn-row">
+          <button id="bodyPaint">Pintura branca</button>
+          <button id="blackTrim">Trim preto</button>
+        </div>
+        <div class="row"><label>Cor carroceria</label><input id="bodyColor" type="color" value="#eceae4" /></div>
+        <button id="applyColor" class="primary">Aplicar cor nas pecas visiveis</button>
+      </section>
+    </aside>
+
+    <main class="viewer">
+      <canvas id="viewport"></canvas>
+      <div class="hud">
+        <div id="status" class="status warn">Carregue um modelo para comecar.</div>
+      </div>
+    </main>
+
+    <aside class="panel right">
+      <div class="panel-header">
+        <h1>Roblox Output</h1>
+        <p class="sub">Exporta GLB e config de fitment</p>
+      </div>
+
+      <section class="section">
+        <h2>Analise</h2>
+        <div class="stats">
+          <div class="stat"><b>Arquivo</b><span id="statFile">-</span></div>
+          <div class="stat"><b>Formato</b><span id="statFormat">-</span></div>
+          <div class="stat"><b>Meshes</b><span id="statMeshes">0</span></div>
+          <div class="stat"><b>Triangulos</b><span id="statTris">0</span></div>
+          <div class="stat"><b>Tamanho</b><span id="statSize">-</span></div>
+          <div class="stat"><b>Materiais</b><span id="statMaterials">0</span></div>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2>Heuristicas</h2>
+        <div id="tags"></div>
+        <p class="note">Rodas sao detectadas por nomes como wheel, tire, tyre e rim. Se o Meshy nao nomear as partes, pode precisar ajuste manual no Studio.</p>
+      </section>
+
+      <section class="section">
+        <h2>Hierarquia</h2>
+        <div id="tree" class="tree">Nenhum modelo carregado.</div>
+      </section>
+
+      <section class="section">
+        <h2>Fitment Config</h2>
+        <textarea id="configOut" spellcheck="false"></textarea>
+        <div class="btn-row">
+          <button id="copyConfig">Copiar config</button>
+          <button id="downloadConfig">Baixar JSON</button>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2>Export</h2>
+        <button id="exportGlb" class="primary">Exportar GLB limpo</button>
+        <p class="note" style="margin-top: 10px;">Depois importe o GLB no Roblox Studio. O site prepara o asset; o Studio ainda e a fronteira que cria MeshParts Roblox.</p>
+      </section>
+    </aside>
+  </div>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+    import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
+    import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
+
+    const $ = (id) => document.getElementById(id);
+    const canvas = $('viewport');
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x111722);
+
+    const camera = new THREE.PerspectiveCamera(55, 1, 0.01, 2000);
+    camera.position.set(8, 5, 10);
+
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.target.set(0, 1, 0);
+
+    const grid = new THREE.GridHelper(30, 30, 0x5ce1e6, 0x2d3440);
+    scene.add(grid);
+    const axes = new THREE.AxesHelper(4);
+    scene.add(axes);
+
+    scene.add(new THREE.HemisphereLight(0xffffff, 0x334455, 2.2));
+    const key = new THREE.DirectionalLight(0xffffff, 2.5);
+    key.position.set(8, 10, 6);
+    scene.add(key);
+    const fill = new THREE.DirectionalLight(0x9fdcff, 1.2);
+    fill.position.set(-8, 4, -5);
+    scene.add(fill);
+
+    let assetRoot = null;
+    let currentFile = null;
+    let originalUrl = null;
+
+    const transformIds = ['scale', 'posX', 'posY', 'posZ', 'rotX', 'rotY', 'rotZ'];
+    for (const id of transformIds) {
+      $(id).addEventListener('input', applyTransformFromUi);
+    }
+
+    document.querySelectorAll('[data-rot]').forEach((button) => {
+      button.addEventListener('click', () => {
+        $('rotY').value = button.dataset.rot;
+        applyTransformFromUi();
+      });
+    });
+
+    $('fileInput').addEventListener('change', (event) => {
+      const file = event.target.files?.[0];
+      if (file) loadFile(file);
+    });
+
+    const dropZone = $('dropZone');
+    dropZone.addEventListener('dragover', (event) => {
+      event.preventDefault();
+      dropZone.classList.add('dragging');
+    });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragging'));
+    dropZone.addEventListener('drop', (event) => {
+      event.preventDefault();
+      dropZone.classList.remove('dragging');
+      const file = event.dataTransfer.files?.[0];
+      if (file) loadFile(file);
+    });
+
+    $('resetScene').addEventListener('click', clearAsset);
+    $('normalize').addEventListener('click', normalizeAsset);
+    $('applyTransform').addEventListener('click', applyTransformFromUi);
+    $('hideWheels').addEventListener('click', () => setWheelVisibility(false));
+    $('showAll').addEventListener('click', showAllParts);
+    $('bodyPaint').addEventListener('click', () => applyMaterialPreset('body'));
+    $('blackTrim').addEventListener('click', () => applyMaterialPreset('trim'));
+    $('applyColor').addEventListener('click', applyBodyColor);
+    $('exportGlb').addEventListener('click', exportGlb);
+    $('copyConfig').addEventListener('click', copyConfig);
+    $('downloadConfig').addEventListener('click', downloadConfig);
+    $('loadColoredSample').addEventListener('click', () => {
+      setStatus('Use o seletor de arquivo e escolha IMPORTAR_NO_ROBLOX/BMW_M4CSL_BODY_READY_COLORED.glb.', 'warn');
+      $('fileInput').click();
+    });
+
+    function setStatus(text, kind = 'warn') {
+      const el = $('status');
+      el.textContent = text;
+      el.className = `status ${kind}`;
+    }
+
+    function resize() {
+      const rect = canvas.parentElement.getBoundingClientRect();
+      renderer.setSize(rect.width, rect.height, false);
+      camera.aspect = rect.width / rect.height;
+      camera.updateProjectionMatrix();
+    }
+
+    window.addEventListener('resize', resize);
+    resize();
+
+    function animate() {
+      requestAnimationFrame(animate);
+      controls.update();
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    async function loadFile(file) {
+      clearAsset();
+      currentFile = file;
+      const extension = file.name.split('.').pop().toLowerCase();
+      originalUrl = URL.createObjectURL(file);
+      setStatus(`Carregando ${file.name}...`, 'warn');
+
+      try {
+        let object;
+        if (extension === 'glb' || extension === 'gltf') {
+          const gltf = await new GLTFLoader().loadAsync(originalUrl);
+          object = gltf.scene;
+        } else if (extension === 'fbx') {
+          object = await new FBXLoader().loadAsync(originalUrl);
+        } else {
+          throw new Error('Formato nao suportado. Use GLB, GLTF ou FBX.');
+        }
+
+        assetRoot = new THREE.Group();
+        assetRoot.name = sanitizeName(file.name.replace(/\.[^.]+$/, ''));
+        assetRoot.add(object);
+        scene.add(assetRoot);
+        normalizeAsset();
+        updateStats();
+        updateConfig();
+        setStatus('Modelo carregado. Ajuste escala, rotacao, materiais e exporte GLB.', 'ok');
+      } catch (error) {
+        console.error(error);
+        setStatus(error.message || String(error), 'err');
+      }
+    }
+
+    function clearAsset() {
+      if (assetRoot) {
+        scene.remove(assetRoot);
+        assetRoot.traverse((node) => {
+          if (node.geometry) node.geometry.dispose();
+          if (node.material) {
+            const materials = Array.isArray(node.material) ? node.material : [node.material];
+            materials.forEach((material) => material.dispose?.());
+          }
+        });
+      }
+      assetRoot = null;
+      currentFile = null;
+      if (originalUrl) URL.revokeObjectURL(originalUrl);
+      originalUrl = null;
+      $('tree').textContent = 'Nenhum modelo carregado.';
+      $('configOut').value = '';
+      $('tags').innerHTML = '';
+      updateStats(true);
+      setStatus('Carregue um modelo para comecar.', 'warn');
+    }
+
+    function normalizeAsset() {
+      if (!assetRoot) return;
+      assetRoot.position.set(0, 0, 0);
+      assetRoot.rotation.set(0, 0, 0);
+      assetRoot.scale.setScalar(1);
+
+      const box = new THREE.Box3().setFromObject(assetRoot);
+      const size = box.getSize(new THREE.Vector3());
+      const center = box.getCenter(new THREE.Vector3());
+      assetRoot.position.sub(center);
+
+      const longest = Math.max(size.x, size.y, size.z);
+      const scale = longest > 0 ? 13 / longest : 1;
+      assetRoot.scale.setScalar(scale);
+
+      const normalizedBox = new THREE.Box3().setFromObject(assetRoot);
+      assetRoot.position.y -= normalizedBox.min.y;
+
+      $('scale').value = '1';
+      $('posX').value = '0';
+      $('posY').value = '0';
+      $('posZ').value = '0';
+      $('rotX').value = '0';
+      $('rotY').value = '0';
+      $('rotZ').value = '0';
+
+      controls.target.set(0, 1, 0);
+      camera.position.set(8, 5, 10);
+      updateStats();
+      updateConfig();
+    }
+
+    function applyTransformFromUi() {
+      if (!assetRoot) return;
+      const scale = numberValue('scale', 1);
+      assetRoot.scale.setScalar(scale);
+      assetRoot.position.set(numberValue('posX'), numberValue('posY'), numberValue('posZ'));
+      assetRoot.rotation.set(
+        THREE.MathUtils.degToRad(numberValue('rotX')),
+        THREE.MathUtils.degToRad(numberValue('rotY')),
+        THREE.MathUtils.degToRad(numberValue('rotZ'))
+      );
+      updateStats();
+      updateConfig();
+    }
+
+    function numberValue(id, fallback = 0) {
+      const value = Number($(id).value);
+      return Number.isFinite(value) ? value : fallback;
+    }
+
+    function isWheelLike(node) {
+      let cursor = node;
+      while (cursor) {
+        const name = (cursor.name || '').toLowerCase();
+        if (name.includes('wheel') || name.includes('tire') || name.includes('tyre') || name.includes('rim')) return true;
+        cursor = cursor.parent;
+      }
+      return false;
+    }
+
+    function isGlassLike(node) {
+      let cursor = node;
+      while (cursor) {
+        const name = (cursor.name || '').toLowerCase();
+        if (name.includes('glass') || name.includes('window') || name.includes('windshield')) return true;
+        cursor = cursor.parent;
+      }
+      return false;
+    }
+
+    function setWheelVisibility(visible) {
+      if (!assetRoot) return;
+      let count = 0;
+      assetRoot.traverse((node) => {
+        if (node.isMesh && isWheelLike(node)) {
+          node.visible = visible;
+          count += 1;
+        }
+      });
+      setStatus(`${visible ? 'Mostradas' : 'Escondidas'} ${count} pecas de roda detectadas.`, 'ok');
+      updateStats();
+      updateConfig();
+    }
+
+    function showAllParts() {
+      if (!assetRoot) return;
+      assetRoot.traverse((node) => {
+        if (node.isMesh) node.visible = true;
+      });
+      updateStats();
+      updateConfig();
+      setStatus('Todas as pecas foram mostradas.', 'ok');
+    }
+
+    function applyMaterialPreset(kind) {
+      if (!assetRoot) return;
+      const color = kind === 'trim' ? new THREE.Color(0x08090b) : new THREE.Color(0xeceae4);
+      const roughness = kind === 'trim' ? 0.38 : 0.24;
+      assetRoot.traverse((node) => {
+        if (!node.isMesh || isWheelLike(node)) return;
+        node.material = makeMaterial(color, roughness, isGlassLike(node));
+      });
+      updateStats();
+      updateConfig();
+    }
+
+    function applyBodyColor() {
+      if (!assetRoot) return;
+      const color = new THREE.Color($('bodyColor').value);
+      assetRoot.traverse((node) => {
+        if (!node.isMesh || isWheelLike(node) || isGlassLike(node)) return;
+        node.material = makeMaterial(color, 0.26, false);
+      });
+      updateStats();
+      updateConfig();
+    }
+
+    function makeMaterial(color, roughness, glass) {
+      return new THREE.MeshStandardMaterial({
+        color,
+        metalness: 0,
+        roughness,
+        transparent: glass,
+        opacity: glass ? 0.38 : 1,
+      });
+    }
+
+    function updateStats(reset = false) {
+      if (reset || !assetRoot) {
+        $('statFile').textContent = '-';
+        $('statFormat').textContent = '-';
+        $('statMeshes').textContent = '0';
+        $('statTris').textContent = '0';
+        $('statSize').textContent = '-';
+        $('statMaterials').textContent = '0';
+        return;
+      }
+
+      const box = new THREE.Box3().setFromObject(assetRoot);
+      const size = box.getSize(new THREE.Vector3());
+      let meshes = 0;
+      let triangles = 0;
+      const materials = new Set();
+      const tags = new Set();
+      const lines = [];
+
+      assetRoot.traverse((node) => {
+        if (node.isMesh) {
+          meshes += 1;
+          const index = node.geometry.index;
+          const position = node.geometry.attributes.position;
+          triangles += index ? index.count / 3 : position ? position.count / 3 : 0;
+          const mats = Array.isArray(node.material) ? node.material : [node.material];
+          mats.forEach((mat) => mat && materials.add(mat.uuid));
+          if (isWheelLike(node)) tags.add('rodas detectadas');
+          if (isGlassLike(node)) tags.add('vidro detectado');
+        }
+        if (lines.length < 80) {
+          lines.push(`${'  '.repeat(depthOf(node))}${node.name || node.type}`);
+        }
+      });
+
+      $('statFile').textContent = currentFile?.name || assetRoot.name;
+      $('statFormat').textContent = currentFile?.name.split('.').pop().toUpperCase() || '-';
+      $('statMeshes').textContent = String(meshes);
+      $('statTris').textContent = String(Math.round(triangles));
+      $('statSize').textContent = `${size.x.toFixed(2)} x ${size.y.toFixed(2)} x ${size.z.toFixed(2)}`;
+      $('statMaterials').textContent = String(materials.size);
+      $('tree').textContent = lines.join('\n');
+      $('tags').innerHTML = [...tags].map((tag) => `<span class="pill">${tag}</span>`).join('') || '<span class="pill">sem heuristicas</span>';
+    }
+
+    function depthOf(node) {
+      let depth = 0;
+      let cursor = node.parent;
+      while (cursor && cursor !== scene) {
+        depth += 1;
+        cursor = cursor.parent;
+      }
+      return depth;
+    }
+
+    function getFitmentConfig() {
+      const hidden = [];
+      if (assetRoot) {
+        assetRoot.traverse((node) => {
+          if (node.isMesh && !node.visible) hidden.push(pathOf(node));
+        });
+      }
+
+      return {
+        id: sanitizeName(currentFile?.name?.replace(/\.[^.]+$/, '') || 'vehicle-asset'),
+        sourceFile: currentFile?.name || null,
+        target: 'Roblox Studio Import 3D -> A-Chassis fitment',
+        transform: {
+          position: { x: numberValue('posX'), y: numberValue('posY'), z: numberValue('posZ') },
+          rotationDegrees: { x: numberValue('rotX'), y: numberValue('rotY'), z: numberValue('rotZ') },
+          scale: numberValue('scale', 1),
+        },
+        hiddenPartPaths: hidden,
+        wheelPolicy: 'UseChassisWheels',
+      };
+    }
+
+    function updateConfig() {
+      $('configOut').value = JSON.stringify(getFitmentConfig(), null, 2);
+    }
+
+    function pathOf(node) {
+      const parts = [];
+      let cursor = node;
+      while (cursor && cursor !== assetRoot) {
+        parts.unshift(cursor.name || cursor.type);
+        cursor = cursor.parent;
+      }
+      return parts.join('/');
+    }
+
+    function sanitizeName(name) {
+      return (name || 'asset').replace(/[^a-zA-Z0-9_-]/g, '_');
+    }
+
+    function downloadBlob(blob, filename) {
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    function exportGlb() {
+      if (!assetRoot) return setStatus('Nenhum modelo carregado para exportar.', 'err');
+      const exporter = new GLTFExporter();
+      exporter.parse(
+        assetRoot,
+        (result) => {
+          const blob = result instanceof ArrayBuffer
+            ? new Blob([result], { type: 'model/gltf-binary' })
+            : new Blob([JSON.stringify(result, null, 2)], { type: 'model/gltf+json' });
+          downloadBlob(blob, `${assetRoot.name}_roblox_ready.glb`);
+          setStatus('GLB exportado. Importe esse arquivo no Roblox Studio.', 'ok');
+        },
+        (error) => {
+          console.error(error);
+          setStatus('Falha ao exportar GLB.', 'err');
+        },
+        { binary: true, onlyVisible: true }
+      );
+    }
+
+    async function copyConfig() {
+      updateConfig();
+      await navigator.clipboard.writeText($('configOut').value);
+      setStatus('Config copiada.', 'ok');
+    }
+
+    function downloadConfig() {
+      updateConfig();
+      const blob = new Blob([$('configOut').value], { type: 'application/json' });
+      downloadBlob(blob, `${getFitmentConfig().id}.vehicle-fitment.json`);
+    }
+  </script>
+</body>
+</html>
