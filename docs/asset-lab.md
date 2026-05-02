@@ -22,8 +22,24 @@ http://localhost:5177/
 - Lets you hide wheel-like meshes by name.
 - Lets you apply simple body/trim material overrides.
 - Lets you switch between the nicer Asset Lab preview and a flatter Roblox Studio preview.
+- Sends the loaded model to Meshy Retexture through a local server-side proxy.
+- Lets you check Meshy task status and load the generated GLB back into the viewer.
 - Exports a cleaned `.glb` for Roblox Studio import.
 - Exports a `.vehicle-fitment.json` config for future in-game fitment tooling.
+
+## Meshy Terminal
+
+The Meshy panel is a local-only workflow:
+
+1. Run the Asset Lab.
+2. Paste the Meshy API key when PowerShell asks for it, or set `MESHY_API_KEY` before starting.
+3. Load a `.glb`, `.gltf`, or `.fbx` file in the viewer.
+4. Edit the prompt in `Meshy Terminal`.
+5. Click `Enviar modelo`.
+6. Use `Checar status` until the task succeeds.
+7. Click `Ver GLB gerado` to load Meshy's generated GLB back into the viewer.
+
+The API key stays in the local Node server process. It is not stored in Git and is not sent to the browser JavaScript.
 
 ## Why It Can Look Worse In Roblox
 

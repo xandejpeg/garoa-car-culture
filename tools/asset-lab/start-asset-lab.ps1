@@ -1,52 +1,38 @@
+param(
+    [int]$Port = 5177
+)
+
 $ErrorActionPreference = "Stop"
 
 $root = $PSScriptRoot
-$port = 5177
-$prefix = "http://localhost:$port/"
+$server = Join-Path $root "server.mjs"
 
-$listener = [System.Net.HttpListener]::new()
-$listener.Prefixes.Add($prefix)
-$listener.Start()
+if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
+    throw "Node.js is required to run the Meshy-enabled Asset Lab."
+}
 
-Write-Host "Garoa Asset Lab running at $prefix" -ForegroundColor Green
-Write-Host "Press Ctrl+C to stop."
-Start-Process $prefix
+if (-not $env:MESHY_API_KEY) {
+    Write-Host "MESHY_API_KEY is not set. Paste it now to use Meshy features." -ForegroundColor Yellow
+    Write-Host "Leave empty to open the Asset Lab without Meshy API calls."
+    $secureKey = Read-Host "Meshy API key" -AsSecureString
+    $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureKey)
+    try {
+        $plainKey = [Runtime.InteropServices.Marshal]::PtrToStringAuto($bstr)
+    }
+    finally {
+        [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr)
+    }
 
-try {
-    while ($listener.IsListening) {
-        $context = $listener.GetContext()
-        $requestPath = $context.Request.Url.AbsolutePath.TrimStart('/')
-        if ([string]::IsNullOrWhiteSpace($requestPath)) {
-            $requestPath = "index.html"
-        }
-
-        $safePath = $requestPath -replace '/', [System.IO.Path]::DirectorySeparatorChar
-        $filePath = Join-Path $root $safePath
-
-        if (-not (Test-Path $filePath)) {
-            $context.Response.StatusCode = 404
-            $bytes = [System.Text.Encoding]::UTF8.GetBytes("Not found")
-            $context.Response.OutputStream.Write($bytes, 0, $bytes.Length)
-            $context.Response.Close()
-            continue
-        }
-
-        $extension = [System.IO.Path]::GetExtension($filePath).ToLowerInvariant()
-        $contentType = switch ($extension) {
-            ".html" { "text/html; charset=utf-8" }
-            ".js" { "text/javascript; charset=utf-8" }
-            ".css" { "text/css; charset=utf-8" }
-            ".json" { "application/json; charset=utf-8" }
-            default { "application/octet-stream" }
-        }
-
-        $bytes = [System.IO.File]::ReadAllBytes($filePath)
-        $context.Response.ContentType = $contentType
-        $context.Response.ContentLength64 = $bytes.Length
-        $context.Response.OutputStream.Write($bytes, 0, $bytes.Length)
-        $context.Response.Close()
+    if (-not [string]::IsNullOrWhiteSpace($plainKey)) {
+        $env:MESHY_API_KEY = $plainKey
     }
 }
-finally {
-    $listener.Stop()
-}
+
+$env:ASSET_LAB_PORT = [string]$Port
+$url = "http://localhost:$Port/"
+
+Write-Host "Garoa Asset Lab starting at $url" -ForegroundColor Green
+Write-Host "API key loaded for this terminal only: $([bool]$env:MESHY_API_KEY)"
+Start-Process $url
+
+node $server
