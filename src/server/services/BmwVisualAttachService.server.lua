@@ -7,6 +7,12 @@ local Workspace = game:GetService("Workspace")
 
 local DEFAULT_VEHICLE_NAME = "TestCar"
 local VISUAL_NAME = "BMW_M4CSL_Visual"
+local IMPORTED_VISUAL_NAME = "BMW_M4CSL_MESHY_Visual"
+local IMPORTED_SOURCE_PATTERNS = {
+    "BMW_M4CSL_MESH",
+    "BMW_M4CSL_MESHY_IMPORTAR",
+    "BMW_M4CSL",
+}
 
 local function findDriveSeat(car)
     local direct = car:FindFirstChild("DriveSeat")
@@ -36,6 +42,88 @@ local function hideOldBody(car)
             descendant.CanCollide = false
         end
     end
+end
+
+local function setModelVisualProperties(model, anchored)
+    for _, descendant in ipairs(model:GetDescendants()) do
+        if descendant:IsA("BasePart") then
+            descendant.Anchored = anchored
+            descendant.CanCollide = false
+            descendant.CanTouch = false
+            descendant.CanQuery = false
+            descendant.Massless = true
+        end
+    end
+end
+
+local function findImportedBmwSource()
+    for _, child in ipairs(Workspace:GetChildren()) do
+        if child:IsA("Model") and child.Name ~= DEFAULT_VEHICLE_NAME and child.Name ~= IMPORTED_VISUAL_NAME and child.Name ~= VISUAL_NAME then
+            local upperName = string.upper(child.Name)
+            for _, pattern in ipairs(IMPORTED_SOURCE_PATTERNS) do
+                if string.find(upperName, pattern, 1, true) then
+                    return child
+                end
+            end
+        end
+    end
+
+    return nil
+end
+
+local function attachImportedBmwVisual(car, driveSeat)
+    local source = findImportedBmwSource()
+    if not source then
+        return false
+    end
+
+    local existingPartsVisual = car:FindFirstChild(VISUAL_NAME)
+    if existingPartsVisual then
+        existingPartsVisual:Destroy()
+    end
+
+    local existingImportedVisual = car:FindFirstChild(IMPORTED_VISUAL_NAME)
+    if existingImportedVisual then
+        return true
+    end
+
+    hideOldBody(car)
+
+    local visual = source:Clone()
+    visual.Name = IMPORTED_VISUAL_NAME
+    visual.Parent = car
+    setModelVisualProperties(visual, false)
+
+    local _, size = visual:GetBoundingBox()
+    local longestAxis = math.max(size.X, size.Z)
+    if longestAxis > 0 then
+        local targetLength = 15.5
+        local scale = math.clamp(targetLength / longestAxis, 0.05, 8)
+        pcall(function()
+            visual:ScaleTo(scale)
+        end)
+    end
+
+    visual:PivotTo(driveSeat.CFrame * CFrame.new(0, 1.25, 0))
+
+    for _, descendant in ipairs(visual:GetDescendants()) do
+        if descendant:IsA("BasePart") then
+            local weld = Instance.new("WeldConstraint")
+            weld.Part0 = driveSeat
+            weld.Part1 = descendant
+            weld.Parent = descendant
+        end
+    end
+
+    setModelVisualProperties(source, true)
+    for _, descendant in ipairs(source:GetDescendants()) do
+        if descendant:IsA("BasePart") then
+            descendant.Transparency = 1
+        end
+    end
+
+    print("[BmwVisualAttachService] BMW M4 CSL importado do Meshy anexado ao TestCar:", source.Name)
+    return true
 end
 
 local function attachPart(visual, driveSeat, name, size, localCFrame, color, material, transparency)
@@ -68,14 +156,18 @@ local function attachBmwVisual(car)
         return false
     end
 
-    if car:FindFirstChild(VISUAL_NAME) then
-        return true
-    end
-
     local driveSeat = findDriveSeat(car)
     if not driveSeat then
         warn("[BmwVisualAttachService] TestCar sem DriveSeat; nao foi possivel anexar visual BMW")
         return false
+    end
+
+    if attachImportedBmwVisual(car, driveSeat) then
+        return true
+    end
+
+    if car:FindFirstChild(VISUAL_NAME) then
+        return true
     end
 
     hideOldBody(car)
@@ -126,6 +218,8 @@ Workspace.ChildAdded:Connect(function(child)
         task.defer(function()
             attachBmwVisual(child)
         end)
+    elseif child:IsA("Model") and findImportedBmwSource() == child then
+        task.defer(tryAttachExisting)
     end
 end)
 
