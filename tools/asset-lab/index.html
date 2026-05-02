@@ -332,6 +332,15 @@
         <div class="row"><label>Cor carroceria</label><input id="bodyColor" type="color" value="#eceae4" /></div>
         <button id="applyColor" class="primary">Aplicar cor nas pecas visiveis</button>
       </section>
+
+      <section class="section">
+        <h2>Preview</h2>
+        <div class="btn-row">
+          <button id="previewLab" class="primary">Asset Lab</button>
+          <button id="previewRoblox">Roblox Studio</button>
+        </div>
+        <p class="note" style="margin-top: 10px;">Use Roblox Studio antes de exportar para ver se o modelo depende demais da luz bonita do navegador.</p>
+      </section>
     </aside>
 
     <main class="viewer">
@@ -423,7 +432,8 @@
     const axes = new THREE.AxesHelper(4);
     scene.add(axes);
 
-    scene.add(new THREE.HemisphereLight(0xffffff, 0x334455, 2.2));
+    const hemi = new THREE.HemisphereLight(0xffffff, 0x334455, 2.2);
+    scene.add(hemi);
     const key = new THREE.DirectionalLight(0xffffff, 2.5);
     key.position.set(8, 10, 6);
     scene.add(key);
@@ -473,6 +483,8 @@
     $('bodyPaint').addEventListener('click', () => applyMaterialPreset('body'));
     $('blackTrim').addEventListener('click', () => applyMaterialPreset('trim'));
     $('applyColor').addEventListener('click', applyBodyColor);
+    $('previewLab').addEventListener('click', () => setPreviewMode('lab'));
+    $('previewRoblox').addEventListener('click', () => setPreviewMode('roblox'));
     $('exportGlb').addEventListener('click', exportGlb);
     $('copyConfig').addEventListener('click', copyConfig);
     $('downloadConfig').addEventListener('click', downloadConfig);
@@ -607,6 +619,20 @@
     function numberValue(id, fallback = 0) {
       const value = Number($(id).value);
       return Number.isFinite(value) ? value : fallback;
+    }
+
+    function setPreviewMode(mode) {
+      const lab = mode === 'lab';
+      scene.background = new THREE.Color(lab ? 0x111722 : 0xb9c2cf);
+      hemi.intensity = lab ? 2.2 : 0.65;
+      hemi.groundColor.set(lab ? 0x334455 : 0x59606a);
+      key.intensity = lab ? 2.5 : 1.15;
+      key.position.set(lab ? 8 : -4, lab ? 10 : 8, lab ? 6 : -6);
+      fill.intensity = lab ? 1.2 : 0.15;
+      renderer.toneMappingExposure = lab ? 1 : 0.82;
+      $('previewLab').classList.toggle('primary', lab);
+      $('previewRoblox').classList.toggle('primary', !lab);
+      setStatus(lab ? 'Preview Asset Lab ativo.' : 'Preview Roblox Studio ativo: se ficar sem graca aqui, vai ficar pior no Studio.', lab ? 'ok' : 'warn');
     }
 
     function isWheelLike(node) {

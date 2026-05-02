@@ -21,8 +21,33 @@ http://localhost:5177/
 - Lets you adjust scale, position, and rotation.
 - Lets you hide wheel-like meshes by name.
 - Lets you apply simple body/trim material overrides.
+- Lets you switch between the nicer Asset Lab preview and a flatter Roblox Studio preview.
 - Exports a cleaned `.glb` for Roblox Studio import.
 - Exports a `.vehicle-fitment.json` config for future in-game fitment tooling.
+
+## Why It Can Look Worse In Roblox
+
+The Asset Lab uses Three.js lighting and PBR materials, so a rough model can look better in the browser than it will inside Roblox. Roblox Studio is the final conversion boundary: it turns GLB/FBX content into MeshParts and may simplify or ignore some material data.
+
+Common causes:
+
+- The Meshy file has no real texture images, only material colors.
+- Roblox imports the mesh but not the same PBR lighting response seen in Three.js.
+- Studio lighting is too flat, too gray, or using default environment settings.
+- The imported MeshParts get generic gray material/color values.
+- Normals, smoothing, or mesh scale are not ideal after import.
+- A body shell is being placed on top of A-Chassis parts without a finished vehicle template.
+
+Use the `Roblox Studio` preview mode before exporting. If the model only looks good in `Asset Lab` mode, it needs better textures/material setup before it will look good in-game.
+
+## Roblox Import Checklist
+
+1. Prefer `.glb` over `.fbx` when the source has materials or textures.
+2. In Asset Lab, normalize to 13 studs and fix rotation before export.
+3. Use `Roblox Studio` preview mode to catch flat gray materials early.
+4. Import the exported GLB through Studio's 3D importer.
+5. After import, inspect MeshParts and set body color/material manually if Studio imports them gray.
+6. For production quality, run Meshy Retexture first and import the textured result, not the raw gray mesh.
 
 ## Boundary
 
