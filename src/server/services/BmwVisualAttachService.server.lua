@@ -1,7 +1,14 @@
 -- =============================================================
 -- GAROA CAR CULTURE - BmwVisualAttachService
--- Forca a carroceria BMW M4 CSL visual em qualquer A-Chassis ativo.
+-- Prototipo desativado: montagem final de carro deve ser feita como asset no Studio.
 -- =============================================================
+
+local ENABLE_EXPERIMENTAL_RUNTIME_MOUNT = false
+
+if not ENABLE_EXPERIMENTAL_RUNTIME_MOUNT then
+    print("[BmwVisualAttachService] Runtime BMW mount disabled. Use final Studio-built vehicle asset instead.")
+    return
+end
 
 local Workspace = game:GetService("Workspace")
 
