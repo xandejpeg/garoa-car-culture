@@ -13,6 +13,7 @@ local IMPORTED_SOURCE_PATTERNS = {
     "BMW_M4CSL_MESHY_IMPORTAR",
     "BMW_M4CSL",
 }
+local IMPORTED_VISUAL_OFFSET = CFrame.new(0, 0.35, 0) * CFrame.Angles(0, math.rad(90), 0)
 
 local function findDriveSeat(car)
     local direct = car:FindFirstChild("DriveSeat")
@@ -44,7 +45,26 @@ local function hideOldBody(car)
     end
 end
 
-local function setModelVisualProperties(model, anchored)
+local function isImportedWheelPart(part)
+    local lowerName = string.lower(part.Name)
+    if string.find(lowerName, "wheel", 1, true) or string.find(lowerName, "tire", 1, true) or string.find(lowerName, "tyre", 1, true) then
+        return true
+    end
+
+    local parent = part.Parent
+    while parent do
+        local parentName = string.lower(parent.Name)
+        if string.find(parentName, "wheel", 1, true) or string.find(parentName, "tire", 1, true) or string.find(parentName, "tyre", 1, true) then
+            return true
+        end
+
+        parent = parent.Parent
+    end
+
+    return false
+end
+
+local function setModelVisualProperties(model, anchored, hideWheels)
     for _, descendant in ipairs(model:GetDescendants()) do
         if descendant:IsA("BasePart") then
             descendant.Anchored = anchored
@@ -52,6 +72,10 @@ local function setModelVisualProperties(model, anchored)
             descendant.CanTouch = false
             descendant.CanQuery = false
             descendant.Massless = true
+
+            if hideWheels and isImportedWheelPart(descendant) then
+                descendant.Transparency = 1
+            end
         end
     end
 end
@@ -92,19 +116,19 @@ local function attachImportedBmwVisual(car, driveSeat)
     local visual = source:Clone()
     visual.Name = IMPORTED_VISUAL_NAME
     visual.Parent = car
-    setModelVisualProperties(visual, false)
+    setModelVisualProperties(visual, false, true)
 
     local _, size = visual:GetBoundingBox()
     local longestAxis = math.max(size.X, size.Z)
     if longestAxis > 0 then
-        local targetLength = 15.5
+        local targetLength = 12.8
         local scale = math.clamp(targetLength / longestAxis, 0.05, 8)
         pcall(function()
             visual:ScaleTo(scale)
         end)
     end
 
-    visual:PivotTo(driveSeat.CFrame * CFrame.new(0, 1.25, 0))
+    visual:PivotTo(driveSeat.CFrame * IMPORTED_VISUAL_OFFSET)
 
     for _, descendant in ipairs(visual:GetDescendants()) do
         if descendant:IsA("BasePart") then
@@ -115,7 +139,7 @@ local function attachImportedBmwVisual(car, driveSeat)
         end
     end
 
-    setModelVisualProperties(source, true)
+    setModelVisualProperties(source, true, false)
     for _, descendant in ipairs(source:GetDescendants()) do
         if descendant:IsA("BasePart") then
             descendant.Transparency = 1
