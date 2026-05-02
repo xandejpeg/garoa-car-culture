@@ -24,8 +24,26 @@ http://localhost:5177/
 - Lets you switch between the nicer Asset Lab preview and a flatter Roblox Studio preview.
 - Sends the loaded model to Meshy Retexture through a local server-side proxy.
 - Lets you check Meshy task status and load the generated GLB back into the viewer.
+- Provides an in-view AI-style chat for Portuguese commands that immediately affect the car preview.
 - Exports a cleaned `.glb` for Roblox Studio import.
 - Exports a `.vehicle-fitment.json` config for future in-game fitment tooling.
+
+## In-View Chat
+
+The large chat at the bottom of the 3D viewer accepts Portuguese commands and applies what it can immediately:
+
+- `pinta de vermelho`
+- `pinta de azul`
+- `esconde as rodas`
+- `mostra tudo`
+- `gira 90 graus`
+- `normaliza`
+- `preview Roblox`
+- `manda para o Meshy com pintura branca e carbono`
+- `checa status`
+- `ver GLB gerado`
+
+Local commands change the model instantly in the viewer. Meshy commands create or check Retexture tasks through the local server.
 
 ## Meshy Terminal
 

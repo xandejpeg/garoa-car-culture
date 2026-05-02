@@ -205,7 +205,7 @@
     .hud {
       position: absolute;
       left: 14px;
-      bottom: 14px;
+      top: 14px;
       display: grid;
       gap: 6px;
       width: min(420px, calc(100% - 28px));
@@ -306,6 +306,73 @@
     .terminal .ok { color: var(--ok); }
     .terminal .warn { color: var(--accent); }
     .terminal .err { color: var(--danger); }
+
+    .ai-chat {
+      position: absolute;
+      left: 16px;
+      right: 16px;
+      bottom: 16px;
+      display: grid;
+      grid-template-rows: minmax(90px, 1fr) auto;
+      gap: 10px;
+      max-height: 245px;
+      padding: 12px;
+      border: 1px solid rgba(92, 225, 230, 0.38);
+      border-radius: 8px;
+      background: rgba(12, 15, 22, 0.86);
+      box-shadow: 0 18px 55px rgba(0, 0, 0, 0.32);
+      backdrop-filter: blur(16px);
+    }
+
+    .ai-chat-log {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      overflow: auto;
+      padding-right: 4px;
+    }
+
+    .bubble {
+      max-width: min(720px, 82%);
+      padding: 9px 11px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      font-size: 13px;
+      line-height: 1.35;
+    }
+
+    .bubble.assistant {
+      align-self: flex-start;
+      background: #171c25;
+      color: var(--text);
+    }
+
+    .bubble.user {
+      align-self: flex-end;
+      background: #2c3340;
+      color: #ffffff;
+    }
+
+    .ai-chat-input {
+      display: grid;
+      grid-template-columns: 1fr 92px;
+      gap: 8px;
+      align-items: end;
+    }
+
+    .ai-chat-input textarea {
+      min-height: 44px;
+      max-height: 92px;
+      resize: vertical;
+      border-color: rgba(92, 225, 230, 0.34);
+      background: rgba(9, 11, 16, 0.92);
+      font-family: Inter, Segoe UI, Arial, sans-serif;
+      font-size: 13px;
+    }
+
+    .ai-chat-input button {
+      min-height: 44px;
+    }
   </style>
 </head>
 <body>
@@ -379,6 +446,15 @@
       <canvas id="viewport"></canvas>
       <div class="hud">
         <div id="status" class="status warn">Carregue um modelo para comecar.</div>
+      </div>
+      <div class="ai-chat" aria-label="Chat IA do Asset Lab">
+        <div id="aiChatLog" class="ai-chat-log">
+          <div class="bubble assistant">Me fala em portugues o que voce quer ver no carro. Exemplos: pinta de vermelho, esconde as rodas, gira 90 graus, deixa estilo Roblox, normaliza, manda para o Meshy com pintura branca M4 CSL.</div>
+        </div>
+        <div class="ai-chat-input">
+          <textarea id="aiChatInput" spellcheck="true" placeholder="Digite o pedido para o carro..."></textarea>
+          <button id="aiChatSend" class="primary">Enviar</button>
+        </div>
       </div>
     </main>
 
@@ -543,6 +619,13 @@
     $('meshyStatus').addEventListener('click', checkMeshyStatus);
     $('meshyLoadResult').addEventListener('click', loadMeshyResult);
     $('meshyClearLog').addEventListener('click', () => { $('meshyLog').innerHTML = ''; });
+    $('aiChatSend').addEventListener('click', sendAiChat);
+    $('aiChatInput').addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault();
+        sendAiChat();
+      }
+    });
     $('loadColoredSample').addEventListener('click', () => {
       setStatus('Use o seletor de arquivo e escolha IMPORTAR_NO_ROBLOX/BMW_M4CSL_BODY_READY_COLORED.glb.', 'warn');
       $('fileInput').click();
@@ -981,6 +1064,11 @@
     }
 
     async function loadMeshyResult() {
+      const typedTaskId = $('meshyInputTaskId').value.trim();
+      if (!meshyTaskId && typedTaskId) {
+        meshyTaskId = typedTaskId;
+      }
+
       if (!latestMeshyTask && meshyTaskId) {
         await checkMeshyStatus();
       }
@@ -1041,6 +1129,138 @@
       line.textContent = `[${time}] ${message}`;
       log.appendChild(line);
       log.scrollTop = log.scrollHeight;
+    }
+
+    async function sendAiChat() {
+      const input = $('aiChatInput');
+      const text = input.value.trim();
+      if (!text) return;
+
+      appendChatBubble(text, 'user');
+      input.value = '';
+
+      try {
+        const answer = await handleCarCommand(text);
+        appendChatBubble(answer, 'assistant');
+      } catch (error) {
+        appendChatBubble(error.message || String(error), 'assistant');
+      }
+    }
+
+    async function handleCarCommand(text) {
+      const command = normalizeText(text);
+
+      if (!assetRoot && !command.includes('meshy')) {
+        return 'Carrega um GLB ou FBX primeiro, ai eu consigo mexer no carro aqui no viewer.';
+      }
+
+      if (command.includes('meshy') || command.includes('textur') || command.includes('retextur') || command.includes('pintura real')) {
+        $('meshyPrompt').value = buildMeshyPromptFromCommand(text);
+        await submitMeshyRetexture();
+        return meshyTaskId
+          ? `Mandei para o Meshy. Task: ${meshyTaskId}. Agora clica em Checar status ou pede "checa status" aqui.`
+          : 'Tentei mandar para o Meshy, mas nao recebi task id. Ve o log do Meshy Terminal na direita.';
+      }
+
+      if (command.includes('status')) {
+        await checkMeshyStatus();
+        return latestMeshyTask
+          ? `Meshy esta em ${latestMeshyTask.status || '-'} ${latestMeshyTask.progress ?? '-'}%.`
+          : 'Ainda nao tenho uma task Meshy carregada.';
+      }
+
+      if (command.includes('resultado') || command.includes('glb gerado') || command.includes('carrega gerado')) {
+        await loadMeshyResult();
+        return 'Tentei carregar o GLB gerado do Meshy no viewer.';
+      }
+
+      if (command.includes('esconde') && (command.includes('roda') || command.includes('pneu'))) {
+        setWheelVisibility(false);
+        return 'Escondi as rodas detectadas. Se o Meshy nomeou estranho, algumas podem precisar ajuste manual.';
+      }
+
+      if ((command.includes('mostra') || command.includes('volta')) && (command.includes('roda') || command.includes('tudo'))) {
+        showAllParts();
+        return 'Mostrei todas as pecas de novo.';
+      }
+
+      if (command.includes('normaliza') || command.includes('centraliza') || command.includes('13 studs')) {
+        normalizeAsset();
+        return 'Centralizei e normalizei o modelo para aproximadamente 13 studs.';
+      }
+
+      if (command.includes('roblox')) {
+        setPreviewMode('roblox');
+        return 'Ativei o preview Roblox Studio para ver o carro com uma luz mais honesta.';
+      }
+
+      if (command.includes('asset lab') || command.includes('bonito') || command.includes('luz bonita')) {
+        setPreviewMode('lab');
+        return 'Voltei para o preview bonito do Asset Lab.';
+      }
+
+      const rotation = command.match(/(?:gira|rotaciona|vira)\D*(-?\d+)/);
+      if (rotation) {
+        $('rotY').value = rotation[1];
+        applyTransformFromUi();
+        return `Girei o carro ${rotation[1]} graus no eixo Y.`;
+      }
+
+      const scale = command.match(/(?:escala|scale)\D*(\d+(?:[\.,]\d+)?)/);
+      if (scale) {
+        $('scale').value = scale[1].replace(',', '.');
+        applyTransformFromUi();
+        return `Ajustei a escala para ${$('scale').value}.`;
+      }
+
+      const color = colorFromCommand(command);
+      if (color) {
+        $('bodyColor').value = color.hex;
+        applyBodyColor();
+        return `Pintei as partes visiveis da carroceria de ${color.name}.`;
+      }
+
+      return 'Ainda nao entendi esse pedido. Tenta algo como: pinta de azul, esconde rodas, gira 90, normaliza, preview Roblox, manda para o Meshy com pintura branca e carbono.';
+    }
+
+    function appendChatBubble(text, kind) {
+      const log = $('aiChatLog');
+      const bubble = document.createElement('div');
+      bubble.className = `bubble ${kind}`;
+      bubble.textContent = text;
+      log.appendChild(bubble);
+      log.scrollTop = log.scrollHeight;
+    }
+
+    function normalizeText(text) {
+      return text
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/ç/g, 'c');
+    }
+
+    function colorFromCommand(command) {
+      const colors = [
+        { keys: ['vermelho', 'red'], hex: '#d71920', name: 'vermelho' },
+        { keys: ['azul', 'blue'], hex: '#1d5fd3', name: 'azul' },
+        { keys: ['branco', 'white'], hex: '#eceae4', name: 'branco' },
+        { keys: ['preto', 'black'], hex: '#07080a', name: 'preto' },
+        { keys: ['cinza', 'gray', 'grey'], hex: '#8d9298', name: 'cinza' },
+        { keys: ['prata', 'silver'], hex: '#c8ccd0', name: 'prata' },
+        { keys: ['amarelo', 'yellow'], hex: '#ffd23f', name: 'amarelo' },
+        { keys: ['verde', 'green'], hex: '#1f9d55', name: 'verde' },
+        { keys: ['laranja', 'orange'], hex: '#f97316', name: 'laranja' },
+        { keys: ['roxo', 'purple'], hex: '#7c3aed', name: 'roxo' },
+      ];
+
+      return colors.find((color) => color.keys.some((key) => command.includes(key)));
+    }
+
+    function buildMeshyPromptFromCommand(text) {
+      const trimmed = text.trim();
+      if (trimmed.length > 40) return trimmed.slice(0, 600);
+      return `realistic game-ready car texture, ${trimmed}, clean base color, PBR material maps, no baked lighting, no dirt, Roblox-friendly vehicle asset`;
     }
   </script>
 </body>
