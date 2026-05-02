@@ -514,6 +514,12 @@
       </section>
 
       <section class="section">
+        <h2>Historico Local</h2>
+        <button id="refreshHistory" class="primary">Atualizar historico</button>
+        <div id="historyOut" class="tree" style="margin-top: 10px;">SQLite ainda nao consultado.</div>
+      </section>
+
+      <section class="section">
         <h2>Export</h2>
         <button id="exportGlb" class="primary">Exportar GLB limpo</button>
         <p class="note" style="margin-top: 10px;">Depois importe o GLB no Roblox Studio. O site prepara o asset; o Studio ainda e a fronteira que cria MeshParts Roblox.</p>
@@ -572,6 +578,8 @@
     let meshyTaskId = null;
     let latestMeshyTask = null;
     let pendingMeshyPrompt = null;
+    const assetLabSessionId = getOrCreateSessionId();
+    let currentModelDbId = null;
 
     const roleLabels = {
       body: 'carroceria',
@@ -637,6 +645,7 @@
     $('meshyStatus').addEventListener('click', checkMeshyStatus);
     $('meshyLoadResult').addEventListener('click', loadMeshyResult);
     $('meshyClearLog').addEventListener('click', () => { $('meshyLog').innerHTML = ''; });
+    $('refreshHistory').addEventListener('click', refreshHistory);
     $('aiChatSend').addEventListener('click', sendAiChat);
     $('aiChatInput').addEventListener('keydown', (event) => {
       if (event.key === 'Enter' && !event.shiftKey) {
@@ -699,6 +708,7 @@
         normalizeAsset();
         updateStats();
         updateConfig();
+        await saveCurrentModel('local');
         setStatus('Modelo carregado. Ajuste escala, rotacao, materiais e exporte GLB.', 'ok');
       } catch (error) {
         console.error(error);
@@ -719,6 +729,7 @@
       }
       assetRoot = null;
       currentFile = null;
+      currentModelDbId = null;
       if (originalUrl) URL.revokeObjectURL(originalUrl);
       originalUrl = null;
       $('tree').textContent = 'Nenhum modelo carregado.';
@@ -1114,6 +1125,8 @@
         const payload = {
           prompt,
           inputTaskId,
+          sessionId: assetLabSessionId,
+          modelId: currentModelDbId,
           enablePbr: $('meshyPbr').checked,
           hdTexture: $('meshyHd').checked,
           targetFormats: ['glb', 'fbx'],
@@ -1140,7 +1153,14 @@
         }
 
         appendMeshyLog(`task criada: ${meshyTaskId}`, 'ok');
+        await saveModification({
+          commandText: prompt,
+          action: 'meshy-retexture-submit',
+          resultText: `task criada: ${meshyTaskId}`,
+          snapshot: { taskId: meshyTaskId },
+        });
         setStatus('Meshy recebeu o pedido. Cheque o status em alguns minutos.', 'ok');
+        refreshHistory();
       } catch (error) {
         appendMeshyLog(error.message || String(error), 'err');
         setStatus('Falha no pedido Meshy.', 'err');
@@ -1173,6 +1193,13 @@
         if (latestMeshyTask.status === 'SUCCEEDED' && latestMeshyTask.model_urls?.glb) {
           appendMeshyLog('GLB pronto. Clique em Ver GLB gerado.', 'ok');
         }
+        await saveModification({
+          commandText: `check meshy ${taskId}`,
+          action: 'meshy-status',
+          resultText: `${latestMeshyTask.status || '-'} ${latestMeshyTask.progress ?? '-'}%`,
+          snapshot: latestMeshyTask,
+        });
+        refreshHistory();
       } catch (error) {
         appendMeshyLog(error.message || String(error), 'err');
       }
@@ -1213,6 +1240,14 @@
         normalizeAsset();
         updateStats();
         updateConfig();
+        await saveCurrentModel('meshy-result', meshyTaskId);
+        await saveModification({
+          commandText: `load meshy result ${meshyTaskId || ''}`.trim(),
+          action: 'meshy-load-result',
+          resultText: 'resultado carregado no viewer',
+          snapshot: getCurrentSnapshot(),
+        });
+        refreshHistory();
         appendMeshyLog('resultado carregado no viewer', 'ok');
         setStatus('Resultado do Meshy carregado.', 'ok');
       } catch (error) {
@@ -1262,8 +1297,11 @@
       try {
         const answer = await handleCarCommand(text);
         appendChatBubble(answer, 'assistant');
+        await saveChat(text, answer);
       } catch (error) {
-        appendChatBubble(error.message || String(error), 'assistant');
+        const answer = error.message || String(error);
+        appendChatBubble(answer, 'assistant');
+        await saveChat(text, answer);
       }
     }
 
@@ -1310,16 +1348,19 @@
 
       if (command.includes('esconde') && (command.includes('roda') || command.includes('pneu'))) {
         setWheelVisibility(false);
+        await saveModification({ commandText: text, action: 'hide-parts', targetRoles: ['wheel', 'rim', 'tire'], resultText: 'rodas detectadas escondidas', snapshot: getCurrentSnapshot() });
         return 'Escondi as rodas detectadas. Se o Meshy nomeou estranho, algumas podem precisar ajuste manual.';
       }
 
       if ((command.includes('mostra') || command.includes('volta')) && (command.includes('roda') || command.includes('tudo'))) {
         showAllParts();
+        await saveModification({ commandText: text, action: 'show-all', resultText: 'todas as pecas mostradas', snapshot: getCurrentSnapshot() });
         return 'Mostrei todas as pecas de novo.';
       }
 
       if (command.includes('normaliza') || command.includes('centraliza') || command.includes('13 studs')) {
         normalizeAsset();
+        await saveModification({ commandText: text, action: 'normalize', resultText: 'modelo normalizado', snapshot: getCurrentSnapshot() });
         return 'Centralizei e normalizei o modelo para aproximadamente 13 studs.';
       }
 
@@ -1337,6 +1378,7 @@
       if (rotation) {
         $('rotY').value = rotation[1];
         applyTransformFromUi();
+        await saveModification({ commandText: text, action: 'rotate', resultText: `rotacao Y ${rotation[1]}`, snapshot: getCurrentSnapshot() });
         return `Girei o carro ${rotation[1]} graus no eixo Y.`;
       }
 
@@ -1344,6 +1386,7 @@
       if (scale) {
         $('scale').value = scale[1].replace(',', '.');
         applyTransformFromUi();
+        await saveModification({ commandText: text, action: 'scale', resultText: `escala ${$('scale').value}`, snapshot: getCurrentSnapshot() });
         return `Ajustei a escala para ${$('scale').value}.`;
       }
 
@@ -1356,6 +1399,14 @@
         if (count === 0) {
           return `Nao achei peca separada para ${targetLabel}. ${singleMeshWarning()}`;
         }
+        await saveModification({
+          commandText: text,
+          action: 'paint',
+          targetRoles: roles,
+          colorHex: color.hex,
+          resultText: `pintou ${count} peca(s) de ${targetLabel} de ${color.name}`,
+          snapshot: getCurrentSnapshot(),
+        });
         return `Pintei ${count} peca(s) de ${targetLabel} de ${color.name}.`;
       }
 
@@ -1443,6 +1494,106 @@
       const trimmed = text.trim();
       if (trimmed.length > 40) return trimmed.slice(0, 600);
       return `realistic game-ready car texture, ${trimmed}, clean base color, PBR material maps, no baked lighting, no dirt, Roblox-friendly vehicle asset`;
+    }
+
+    function getOrCreateSessionId() {
+      const existing = localStorage.getItem('garoaAssetLabSessionId');
+      if (existing) return existing;
+      const created = crypto.randomUUID();
+      localStorage.setItem('garoaAssetLabSessionId', created);
+      return created;
+    }
+
+    async function saveCurrentModel(sourceKind, sourceTaskId = null) {
+      if (!assetRoot) return null;
+      const snapshot = getCurrentSnapshot();
+      const saved = await postDb('/api/db/models', {
+        sessionId: assetLabSessionId,
+        name: currentFile?.name || assetRoot.name,
+        format: currentFile?.name?.split('.').pop()?.toUpperCase() || null,
+        sourceKind,
+        sourceTaskId,
+        sizeBytes: currentFile?.size || null,
+        meshes: snapshot.meshes,
+        triangles: snapshot.triangles,
+        materials: snapshot.materials,
+        dimensions: snapshot.dimensions,
+        roles: snapshot.roles,
+      });
+      currentModelDbId = saved?.id || currentModelDbId;
+      refreshHistory();
+      return currentModelDbId;
+    }
+
+    function getCurrentSnapshot() {
+      if (!assetRoot) return {};
+      const box = new THREE.Box3().setFromObject(assetRoot);
+      const size = box.getSize(new THREE.Vector3());
+      let meshes = 0;
+      let triangles = 0;
+      const materials = new Set();
+      assetRoot.traverse((node) => {
+        if (!node.isMesh) return;
+        meshes += 1;
+        const index = node.geometry.index;
+        const position = node.geometry.attributes.position;
+        triangles += index ? index.count / 3 : position ? position.count / 3 : 0;
+        const mats = Array.isArray(node.material) ? node.material : [node.material];
+        mats.forEach((material) => material && materials.add(material.uuid));
+      });
+      return {
+        file: currentFile?.name || assetRoot.name,
+        meshes,
+        triangles: Math.round(triangles),
+        materials: materials.size,
+        dimensions: { x: size.x, y: size.y, z: size.z },
+        roles: Object.fromEntries(roleCounts()),
+        transform: getFitmentConfig().transform,
+      };
+    }
+
+    async function saveChat(userText, assistantText) {
+      await postDb('/api/db/chat', { sessionId: assetLabSessionId, modelId: currentModelDbId, userText, assistantText });
+    }
+
+    async function saveModification(input) {
+      await postDb('/api/db/modifications', { sessionId: assetLabSessionId, modelId: currentModelDbId, ...input });
+    }
+
+    async function postDb(url, body) {
+      try {
+        return await apiJson(url, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+      } catch (error) {
+        console.warn('Asset Lab DB save failed:', error);
+        return null;
+      }
+    }
+
+    async function refreshHistory() {
+      try {
+        const history = await apiJson('/api/history?limit=6');
+        const outputLines = (history.meshyOutputs || []).map((output) => {
+          const sizeMb = output.file_size ? `${(output.file_size / 1024 / 1024).toFixed(2)} MB` : '-';
+          return `output ${output.format}: ${sizeMb}\n  ${output.local_path}`;
+        });
+        const taskLines = (history.meshyTasks || []).map((task) => `task ${task.task_id}: ${task.status || '-'} ${task.progress ?? '-'}% creditos=${task.consumed_credits ?? '-'}`);
+        const modelLines = (history.models || []).map((model) => `modelo ${model.name}: meshes=${model.meshes ?? '-'} tris=${model.triangles ?? '-'}`);
+        $('historyOut').textContent = [
+          `DB: ${history.database}`,
+          '',
+          ...taskLines,
+          '',
+          ...outputLines,
+          '',
+          ...modelLines,
+        ].join('\n').trim();
+      } catch (error) {
+        $('historyOut').textContent = error.message || String(error);
+      }
     }
   </script>
 </body>

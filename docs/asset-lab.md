@@ -85,6 +85,36 @@ The Meshy panel is a local-only workflow:
 
 The API key stays in the local Node server process. It is not stored in Git and is not sent to the browser JavaScript.
 
+## Local SQLite History
+
+The Asset Lab stores local history in SQLite:
+
+```text
+tools/asset-lab/data/asset-lab.sqlite
+```
+
+This database is ignored by Git. It saves:
+
+- loaded 3D models and their mesh/material/role stats;
+- chat prompts and assistant answers;
+- local modifications such as paint, rotate, normalize, hide wheels, and load Meshy result;
+- Meshy Retexture task ids, status responses, consumed credits, and generated model URLs.
+
+Use this endpoint while the Asset Lab is running:
+
+```text
+http://localhost:5177/api/history
+```
+
+The database is local to this machine and can be inspected with any SQLite browser.
+
+The `Historico Local` panel in the Asset Lab reads this endpoint and shows recent models, Meshy tasks, and local output files. Meshy outputs are also downloaded to:
+
+```text
+tools/asset-lab/data/meshy-outputs/<task-id>/model.glb
+tools/asset-lab/data/meshy-outputs/<task-id>/model.fbx
+```
+
 ## Why It Can Look Worse In Roblox
 
 The Asset Lab uses Three.js lighting and PBR materials, so a rough model can look better in the browser than it will inside Roblox. Roblox Studio is the final conversion boundary: it turns GLB/FBX content into MeshParts and may simplify or ignore some material data.

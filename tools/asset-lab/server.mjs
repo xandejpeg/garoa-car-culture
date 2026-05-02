@@ -1,13 +1,24 @@
 import { createServer } from 'node:http';
-import { readFile } from 'node:fs/promises';
-import { createReadStream, existsSync } from 'node:fs';
+import { writeFile } from 'node:fs/promises';
+import { createReadStream, existsSync, mkdirSync, statSync } from 'node:fs';
 import { extname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import {
+  databaseInfo,
+  ensureSession,
+  historySummary,
+  insertChat,
+  insertModel,
+  insertModification,
+  upsertMeshyOutput,
+  upsertMeshyTask,
+} from './asset-db.mjs';
 
 const root = fileURLToPath(new URL('.', import.meta.url));
 const port = Number(process.env.ASSET_LAB_PORT || 5177);
 const meshyApiKey = process.env.MESHY_API_KEY || '';
 const maxBodyBytes = Number(process.env.ASSET_LAB_MAX_BODY_MB || 95) * 1024 * 1024;
+const meshyOutputRoot = join(root, 'data', 'meshy-outputs');
 
 const contentTypes = new Map([
   ['.html', 'text/html; charset=utf-8'],
@@ -25,7 +36,28 @@ const server = createServer(async (request, response) => {
     const url = new URL(request.url || '/', `http://${request.headers.host || 'localhost'}`);
 
     if (url.pathname === '/api/health') {
-      return json(response, 200, { ok: true, meshyApiKeyConfigured: Boolean(meshyApiKey) });
+      return json(response, 200, { ok: true, meshyApiKeyConfigured: Boolean(meshyApiKey), database: databaseInfo().path });
+    }
+
+    if (url.pathname === '/api/history' && request.method === 'GET') {
+      return json(response, 200, historySummary(Number(url.searchParams.get('limit') || 80)));
+    }
+
+    if (url.pathname === '/api/db/session' && request.method === 'POST') {
+      const input = await readJsonBody(request);
+      return json(response, 200, { sessionId: ensureSession(input.sessionId) });
+    }
+
+    if (url.pathname === '/api/db/models' && request.method === 'POST') {
+      return json(response, 200, insertModel(await readJsonBody(request)));
+    }
+
+    if (url.pathname === '/api/db/chat' && request.method === 'POST') {
+      return json(response, 200, insertChat(await readJsonBody(request)));
+    }
+
+    if (url.pathname === '/api/db/modifications' && request.method === 'POST') {
+      return json(response, 200, insertModification(await readJsonBody(request)));
     }
 
     if (url.pathname === '/api/meshy/retexture' && request.method === 'POST') {
@@ -97,6 +129,17 @@ async function createRetextureTask(request, response) {
     body: JSON.stringify(body),
   });
 
+  const taskId = result.result || result.id;
+  upsertMeshyTask({
+    taskId,
+    sessionId: input.sessionId,
+    modelId: input.modelId,
+    prompt,
+    status: 'SUBMITTED',
+    request: body,
+    response: result,
+  });
+
   return json(response, 200, result);
 }
 
@@ -110,7 +153,42 @@ async function getRetextureTask(response, taskId) {
   }
 
   const result = await meshyFetch(`/openapi/v1/retexture/${encodeURIComponent(taskId)}`);
+  upsertMeshyTask({
+    taskId: result.id || taskId,
+    status: result.status,
+    progress: result.progress,
+    consumedCredits: result.consumed_credits,
+    response: result,
+    modelUrls: result.model_urls,
+  });
+  await saveMeshyOutputs(result.id || taskId, result.model_urls);
   return json(response, 200, result);
+}
+
+async function saveMeshyOutputs(taskId, modelUrls) {
+  if (!taskId || !modelUrls) return;
+  mkdirSync(join(meshyOutputRoot, taskId), { recursive: true });
+
+  for (const format of ['glb', 'fbx', 'obj', 'stl', 'usdz']) {
+    const remoteUrl = modelUrls[format];
+    if (!remoteUrl) continue;
+
+    const localPath = join(meshyOutputRoot, taskId, `model.${format}`);
+    if (!existsSync(localPath)) {
+      const outputResponse = await fetch(remoteUrl);
+      if (!outputResponse.ok) continue;
+      const buffer = Buffer.from(await outputResponse.arrayBuffer());
+      await writeFile(localPath, buffer);
+    }
+
+    upsertMeshyOutput({
+      taskId,
+      format,
+      remoteUrl,
+      localPath,
+      fileSize: statSync(localPath).size,
+    });
+  }
 }
 
 async function meshyFetch(path, options = {}) {

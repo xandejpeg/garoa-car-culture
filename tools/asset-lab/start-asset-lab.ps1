@@ -35,4 +35,4 @@ Write-Host "Garoa Asset Lab starting at $url" -ForegroundColor Green
 Write-Host "API key loaded for this terminal only: $([bool]$env:MESHY_API_KEY)"
 Start-Process $url
 
-node $server
+node --no-warnings $server
