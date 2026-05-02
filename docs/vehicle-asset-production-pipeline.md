@@ -23,10 +23,38 @@ Roblox Studio's `Import 3D` step is not exposed through Rojo. Import the prepare
 .\tools\prepare-bmw-meshy-for-roblox.ps1
 ```
 
-3. In Roblox Studio, use `Import` and select the generated file:
+If Meshy delivered a gray model and API retexture is not available yet, generate a local material fallback:
+
+```powershell
+.\tools\prepare-bmw-meshy-for-roblox.ps1 -ApplyPrototypeMaterials
+```
+
+3. In Roblox Studio, use `Import` and select the generated GLB first. GLB usually preserves Meshy materials better than FBX:
 
 ```text
-IMPORTAR_NO_ROBLOX\BMW_M4CSL_BODY_READY_FOR_ROBLOX.fbx
+IMPORTAR_NO_ROBLOX\BMW_M4CSL_BODY_READY_FOR_ROBLOX.glb
+```
+
+Use the generated FBX only if Roblox Studio refuses the GLB.
+
+If the source model is gray, it needs Meshy Retexture. Remesh does not generate paint or texture.
+
+```powershell
+.\tools\meshy-retexture.ps1 -InputTaskId "019de201-0490-716e-9323-2c8b386ff5b9" -Name "bmw-m4csl-textured" -EnablePbr -Wait
+```
+
+This consumes Meshy credits. The generated textured GLB/FBX is saved under:
+
+```text
+assets\meshy-output\bmw-m4csl-textured
+```
+
+If the car points sideways after import, rerun the preparation with an explicit rotation:
+
+```powershell
+.\tools\prepare-bmw-meshy-for-roblox.ps1 -RotationZDegrees 90
+.\tools\prepare-bmw-meshy-for-roblox.ps1 -RotationZDegrees -90
+.\tools\prepare-bmw-meshy-for-roblox.ps1 -RotationZDegrees 180
 ```
 
 4. Mount and adjust the mesh on `Workspace.TestCar` in Studio.
