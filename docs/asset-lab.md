@@ -32,7 +32,12 @@ http://localhost:5177/
 
 The large chat at the bottom of the 3D viewer accepts Portuguese commands and applies what it can immediately:
 
+- `mapa de pecas`
 - `pinta de vermelho`
+- `pinta farol azul`
+- `pinta vidro preto`
+- `pinta roda preta`
+- `pinta tudo de amarelo`
 - `pinta de azul`
 - `esconde as rodas`
 - `mostra tudo`
@@ -44,6 +49,26 @@ The large chat at the bottom of the 3D viewer accepts Portuguese commands and ap
 - `ver GLB gerado`
 
 Local commands change the model instantly in the viewer. Meshy commands create or check Retexture tasks through the local server.
+
+## Part Understanding
+
+The Asset Lab now classifies visible meshes into semantic roles before applying chat commands:
+
+- `carroceria`
+- `vidro`
+- `farol`
+- `lanterna`
+- `roda`
+- `pneu`
+- `aro`
+- `grade`
+- `acabamento`
+- `retrovisor`
+- `interior`
+- `emblema`
+- `placa`
+
+This depends on the model actually having separate meshes or useful mesh/material names. If Meshy or another exporter returns the whole car as one mesh, the Asset Lab cannot paint just the headlight or glass because those parts do not exist as separate selectable geometry. In that case, use the original multi-mesh FBX/GLB, ask Meshy for separated parts, or separate the model by material/part in Blender before doing precise edits.
 
 ## Meshy Terminal
 

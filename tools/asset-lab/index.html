@@ -572,6 +572,23 @@
     let meshyTaskId = null;
     let latestMeshyTask = null;
 
+    const roleLabels = {
+      body: 'carroceria',
+      glass: 'vidro',
+      tire: 'pneu',
+      wheel: 'roda',
+      rim: 'aro',
+      headlight: 'farol',
+      taillight: 'lanterna',
+      grille: 'grade',
+      trim: 'acabamento',
+      mirror: 'retrovisor',
+      interior: 'interior',
+      badge: 'emblema',
+      plate: 'placa',
+      unknown: 'sem classe',
+    };
+
     const transformIds = ['scale', 'posX', 'posY', 'posZ', 'rotX', 'rotY', 'rotZ'];
     for (const id of transformIds) {
       $(id).addEventListener('input', applyTransformFromUi);
@@ -676,6 +693,7 @@
         assetRoot.name = sanitizeName(file.name.replace(/\.[^.]+$/, ''));
         assetRoot.add(object);
         scene.add(assetRoot);
+        classifyParts();
         appendMeshyLog(`modelo local carregado: ${file.name}`, 'ok');
         normalizeAsset();
         updateStats();
@@ -775,23 +793,92 @@
     }
 
     function isWheelLike(node) {
-      let cursor = node;
-      while (cursor) {
-        const name = (cursor.name || '').toLowerCase();
-        if (name.includes('wheel') || name.includes('tire') || name.includes('tyre') || name.includes('rim')) return true;
-        cursor = cursor.parent;
-      }
-      return false;
+      return ['tire', 'wheel', 'rim'].includes(getPartRole(node));
     }
 
     function isGlassLike(node) {
+      return getPartRole(node) === 'glass';
+    }
+
+    function classifyParts() {
+      if (!assetRoot) return;
+      const largest = largestMeshByVolume();
+      assetRoot.traverse((node) => {
+        if (node.isMesh) node.userData.assetLabRole = inferPartRole(node, largest);
+      });
+    }
+
+    function inferPartRole(node, largest) {
+      const text = searchableText(node);
+      const material = Array.isArray(node.material) ? node.material[0] : node.material;
+
+      if (hasAny(text, ['windshield', 'windscreen', 'window', 'glass', 'janela', 'vidro', 'parabrisa'])) return 'glass';
+      if (hasAny(text, ['headlight', 'headlamp', 'frontlight', 'farol', 'laserlight'])) return 'headlight';
+      if (hasAny(text, ['taillight', 'tail_light', 'brakelight', 'rear_light', 'lanterna'])) return 'taillight';
+      if (hasAny(text, ['tire', 'tyre', 'pneu'])) return 'tire';
+      if (hasAny(text, ['rim', 'aro'])) return 'rim';
+      if (hasAny(text, ['wheel', 'roda'])) return 'wheel';
+      if (hasAny(text, ['grille', 'grill', 'kidney', 'grade'])) return 'grille';
+      if (hasAny(text, ['mirror', 'retrovisor'])) return 'mirror';
+      if (hasAny(text, ['seat', 'interior', 'dashboard', 'steering', 'cockpit', 'volante', 'banco'])) return 'interior';
+      if (hasAny(text, ['badge', 'logo', 'emblem', 'emblema'])) return 'badge';
+      if (hasAny(text, ['plate', 'license', 'placa'])) return 'plate';
+      if (hasAny(text, ['carbon', 'trim', 'splitter', 'diffuser', 'spoiler', 'skirt', 'black', 'acabamento'])) return 'trim';
+      if (hasAny(text, ['body', 'carbody', 'shell', 'door', 'hood', 'bonnet', 'roof', 'trunk', 'fender', 'bumper', 'carroceria', 'porta', 'capo'])) return 'body';
+
+      if (material?.transparent || material?.opacity < 0.85) return 'glass';
+      if (node === largest) return 'body';
+      return 'unknown';
+    }
+
+    function getPartRole(node) {
+      return node.userData.assetLabRole || inferPartRole(node, largestMeshByVolume());
+    }
+
+    function searchableText(node) {
+      const parts = [];
       let cursor = node;
-      while (cursor) {
-        const name = (cursor.name || '').toLowerCase();
-        if (name.includes('glass') || name.includes('window') || name.includes('windshield')) return true;
+      while (cursor && cursor !== assetRoot) {
+        if (cursor.name) parts.push(cursor.name);
         cursor = cursor.parent;
       }
-      return false;
+      const materials = Array.isArray(node.material) ? node.material : [node.material];
+      materials.forEach((material) => {
+        if (material?.name) parts.push(material.name);
+      });
+      return normalizeText(parts.join(' '));
+    }
+
+    function hasAny(text, words) {
+      return words.some((word) => text.includes(word));
+    }
+
+    function largestMeshByVolume() {
+      if (!assetRoot) return null;
+      let largest = null;
+      let largestVolume = -1;
+      assetRoot.traverse((node) => {
+        if (!node.isMesh) return;
+        const box = new THREE.Box3().setFromObject(node);
+        const size = box.getSize(new THREE.Vector3());
+        const volume = size.x * size.y * size.z;
+        if (volume > largestVolume) {
+          largest = node;
+          largestVolume = volume;
+        }
+      });
+      return largest;
+    }
+
+    function roleCounts() {
+      const counts = new Map();
+      if (!assetRoot) return counts;
+      assetRoot.traverse((node) => {
+        if (!node.isMesh) return;
+        const role = getPartRole(node);
+        counts.set(role, (counts.get(role) || 0) + 1);
+      });
+      return counts;
     }
 
     function setWheelVisibility(visible) {
@@ -824,6 +911,9 @@
       const roughness = kind === 'trim' ? 0.38 : 0.24;
       assetRoot.traverse((node) => {
         if (!node.isMesh || isWheelLike(node)) return;
+        const role = getPartRole(node);
+        if (kind === 'trim' && !['trim', 'grille', 'mirror', 'badge'].includes(role)) return;
+        if (kind === 'body' && role !== 'body') return;
         node.material = makeMaterial(color, roughness, isGlassLike(node));
       });
       updateStats();
@@ -833,12 +923,25 @@
     function applyBodyColor() {
       if (!assetRoot) return;
       const color = new THREE.Color($('bodyColor').value);
+      applyColorToRoles(color, ['body'], 0.26);
+      updateStats();
+      updateConfig();
+    }
+
+    function applyColorToRoles(color, roles, roughness = 0.26) {
+      if (!assetRoot) return 0;
+      classifyParts();
+      let count = 0;
       assetRoot.traverse((node) => {
-        if (!node.isMesh || isWheelLike(node) || isGlassLike(node)) return;
-        node.material = makeMaterial(color, 0.26, false);
+        if (!node.isMesh) return;
+        const role = getPartRole(node);
+        if (!roles.includes(role)) return;
+        node.material = makeMaterial(color, roughness, role === 'glass');
+        count += 1;
       });
       updateStats();
       updateConfig();
+      return count;
     }
 
     function makeMaterial(color, roughness, glass) {
@@ -872,17 +975,18 @@
 
       assetRoot.traverse((node) => {
         if (node.isMesh) {
+          const role = getPartRole(node);
           meshes += 1;
           const index = node.geometry.index;
           const position = node.geometry.attributes.position;
           triangles += index ? index.count / 3 : position ? position.count / 3 : 0;
           const mats = Array.isArray(node.material) ? node.material : [node.material];
           mats.forEach((mat) => mat && materials.add(mat.uuid));
-          if (isWheelLike(node)) tags.add('rodas detectadas');
-          if (isGlassLike(node)) tags.add('vidro detectado');
+          tags.add(`${roleLabels[role] || role}: ${(roleCounts().get(role) || 0)}`);
         }
         if (lines.length < 80) {
-          lines.push(`${'  '.repeat(depthOf(node))}${node.name || node.type}`);
+          const role = node.isMesh ? ` [${roleLabels[getPartRole(node)] || getPartRole(node)}]` : '';
+          lines.push(`${'  '.repeat(depthOf(node))}${node.name || node.type}${role}`);
         }
       });
 
@@ -1090,6 +1194,7 @@
         assetRoot.add(gltf.scene);
         scene.add(assetRoot);
         currentFile = { name: `${assetRoot.name}.glb` };
+        classifyParts();
         normalizeAsset();
         updateStats();
         updateConfig();
@@ -1174,6 +1279,10 @@
         return 'Tentei carregar o GLB gerado do Meshy no viewer.';
       }
 
+      if (command.includes('mapa') || command.includes('partes') || command.includes('pecas') || command.includes('entende')) {
+        return describePartMap();
+      }
+
       if (command.includes('esconde') && (command.includes('roda') || command.includes('pneu'))) {
         setWheelVisibility(false);
         return 'Escondi as rodas detectadas. Se o Meshy nomeou estranho, algumas podem precisar ajuste manual.';
@@ -1216,11 +1325,59 @@
       const color = colorFromCommand(command);
       if (color) {
         $('bodyColor').value = color.hex;
-        applyBodyColor();
-        return `Pintei as partes visiveis da carroceria de ${color.name}.`;
+        const roles = targetRolesFromCommand(command);
+        const count = applyColorToRoles(new THREE.Color(color.hex), roles, roughnessForRoles(roles));
+        const targetLabel = roles.map((role) => roleLabels[role] || role).join(', ');
+        if (count === 0) {
+          return `Nao achei peca separada para ${targetLabel}. ${singleMeshWarning()}`;
+        }
+        return `Pintei ${count} peca(s) de ${targetLabel} de ${color.name}.`;
       }
 
       return 'Ainda nao entendi esse pedido. Tenta algo como: pinta de azul, esconde rodas, gira 90, normaliza, preview Roblox, manda para o Meshy com pintura branca e carbono.';
+    }
+
+    function targetRolesFromCommand(command) {
+      if (hasAny(command, ['tudo', 'todas', 'todos', 'inteiro', 'absolutamente'])) return Object.keys(roleLabels).filter((role) => role !== 'unknown');
+      if (hasAny(command, ['farol', 'headlight'])) return ['headlight'];
+      if (hasAny(command, ['lanterna', 'brake', 'tail'])) return ['taillight'];
+      if (hasAny(command, ['vidro', 'janela', 'parabrisa', 'glass', 'window'])) return ['glass'];
+      if (hasAny(command, ['pneu', 'tire', 'tyre'])) return ['tire'];
+      if (hasAny(command, ['aro', 'rim'])) return ['rim'];
+      if (hasAny(command, ['roda', 'wheel'])) return ['wheel', 'rim'];
+      if (hasAny(command, ['grade', 'grille', 'grill'])) return ['grille'];
+      if (hasAny(command, ['retrovisor', 'mirror'])) return ['mirror'];
+      if (hasAny(command, ['interior', 'banco', 'volante'])) return ['interior'];
+      if (hasAny(command, ['emblema', 'logo', 'badge'])) return ['badge'];
+      if (hasAny(command, ['placa', 'plate'])) return ['plate'];
+      if (hasAny(command, ['trim', 'acabamento', 'carbono', 'carbon'])) return ['trim', 'grille'];
+      return ['body'];
+    }
+
+    function roughnessForRoles(roles) {
+      if (roles.includes('glass')) return 0.08;
+      if (roles.some((role) => ['tire', 'grille', 'trim', 'interior'].includes(role))) return 0.48;
+      if (roles.some((role) => ['headlight', 'taillight', 'rim', 'badge'].includes(role))) return 0.18;
+      return 0.26;
+    }
+
+    function describePartMap() {
+      if (!assetRoot) return 'Carrega um modelo primeiro para eu mapear as pecas.';
+      classifyParts();
+      const counts = [...roleCounts().entries()]
+        .sort((a, b) => (roleLabels[a[0]] || a[0]).localeCompare(roleLabels[b[0]] || b[0]))
+        .map(([role, count]) => `${roleLabels[role] || role}: ${count}`)
+        .join(', ');
+      return `Mapeei as pecas assim: ${counts || 'nenhuma malha encontrada'}. ${singleMeshWarning()}`.trim();
+    }
+
+    function singleMeshWarning() {
+      const counts = roleCounts();
+      const total = [...counts.values()].reduce((sum, count) => sum + count, 0);
+      if (total <= 1) {
+        return 'Esse arquivo parece ter uma malha so; para pintar farol/vidro/roda separado, o modelo precisa vir separado por pecas ou materiais.';
+      }
+      return '';
     }
 
     function appendChatBubble(text, kind) {
