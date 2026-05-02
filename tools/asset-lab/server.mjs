@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 const root = fileURLToPath(new URL('.', import.meta.url));
 const port = Number(process.env.ASSET_LAB_PORT || 5177);
 const meshyApiKey = process.env.MESHY_API_KEY || '';
-const maxBodyBytes = 35 * 1024 * 1024;
+const maxBodyBytes = Number(process.env.ASSET_LAB_MAX_BODY_MB || 95) * 1024 * 1024;
 
 const contentTypes = new Map([
   ['.html', 'text/html; charset=utf-8'],
@@ -29,22 +29,22 @@ const server = createServer(async (request, response) => {
     }
 
     if (url.pathname === '/api/meshy/retexture' && request.method === 'POST') {
-      return createRetextureTask(request, response);
+      return await createRetextureTask(request, response);
     }
 
     if (url.pathname.startsWith('/api/meshy/retexture/') && request.method === 'GET') {
       const taskId = decodeURIComponent(url.pathname.split('/').pop() || '');
-      return getRetextureTask(response, taskId);
+      return await getRetextureTask(response, taskId);
     }
 
     if (url.pathname === '/api/model-proxy' && request.method === 'GET') {
-      return proxyModel(response, url.searchParams.get('url'));
+      return await proxyModel(response, url.searchParams.get('url'));
     }
 
-    return serveStatic(url.pathname, response);
+    return await serveStatic(url.pathname, response);
   } catch (error) {
     console.error(error);
-    return json(response, 500, { error: error.message || String(error) });
+    return json(response, error.statusCode || 500, { error: error.message || String(error) });
   }
 });
 
@@ -183,7 +183,10 @@ async function readJsonBody(request) {
   for await (const chunk of request) {
     size += chunk.length;
     if (size > maxBodyBytes) {
-      throw new Error('Request body too large. Use a smaller GLB/FBX or a public model URL.');
+      const limitMb = Math.round(maxBodyBytes / 1024 / 1024);
+      const error = new Error(`Request body too large for local upload limit (${limitMb} MB). Export a smaller GLB/FBX, disable HD texture, or use a public model URL.`);
+      error.statusCode = 413;
+      throw error;
     }
     chunks.push(chunk);
   }
