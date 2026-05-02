@@ -571,6 +571,7 @@
     let originalUrl = null;
     let meshyTaskId = null;
     let latestMeshyTask = null;
+    let pendingMeshyPrompt = null;
 
     const roleLabels = {
       body: 'carroceria',
@@ -1259,12 +1260,22 @@
         return 'Carrega um GLB ou FBX primeiro, ai eu consigo mexer no carro aqui no viewer.';
       }
 
-      if (command.includes('meshy') || command.includes('textur') || command.includes('retextur') || command.includes('pintura real')) {
-        $('meshyPrompt').value = buildMeshyPromptFromCommand(text);
+      if (command.includes('confirmar meshy')) {
+        if (!pendingMeshyPrompt) {
+          return 'Nao tem pedido Meshy pendente. Primeiro pede algo tipo: manda para o Meshy com vidro fume e pintura branca.';
+        }
+        $('meshyPrompt').value = pendingMeshyPrompt;
+        pendingMeshyPrompt = null;
         await submitMeshyRetexture();
         return meshyTaskId
-          ? `Mandei para o Meshy. Task: ${meshyTaskId}. Agora clica em Checar status ou pede "checa status" aqui.`
+          ? `Agora sim mandei para o Meshy. Task: ${meshyTaskId}.`
           : 'Tentei mandar para o Meshy, mas nao recebi task id. Ve o log do Meshy Terminal na direita.';
+      }
+
+      if (command.includes('meshy') || command.includes('textur') || command.includes('retextur') || command.includes('pintura real')) {
+        pendingMeshyPrompt = buildMeshyPromptFromCommand(text);
+        $('meshyPrompt').value = pendingMeshyPrompt;
+        return 'Preparei o prompt no Meshy Terminal, mas NAO enviei ainda. Para gastar credito, escreva: confirmar meshy.';
       }
 
       if (command.includes('status')) {
@@ -1334,14 +1345,14 @@
         return `Pintei ${count} peca(s) de ${targetLabel} de ${color.name}.`;
       }
 
-      return 'Ainda nao entendi esse pedido. Tenta algo como: pinta de azul, esconde rodas, gira 90, normaliza, preview Roblox, manda para o Meshy com pintura branca e carbono.';
+      return 'Ainda nao entendi esse pedido. Tenta algo como: vidros fume, pinta carroceria azul, pinta farol azul, esconde rodas, gira 90, mapa de pecas, preview Roblox.';
     }
 
     function targetRolesFromCommand(command) {
       if (hasAny(command, ['tudo', 'todas', 'todos', 'inteiro', 'absolutamente'])) return Object.keys(roleLabels).filter((role) => role !== 'unknown');
       if (hasAny(command, ['farol', 'headlight'])) return ['headlight'];
       if (hasAny(command, ['lanterna', 'brake', 'tail'])) return ['taillight'];
-      if (hasAny(command, ['vidro', 'janela', 'parabrisa', 'glass', 'window'])) return ['glass'];
+      if (hasAny(command, ['vidro', 'janela', 'parabrisa', 'fume', 'glass', 'window'])) return ['glass'];
       if (hasAny(command, ['pneu', 'tire', 'tyre'])) return ['tire'];
       if (hasAny(command, ['aro', 'rim'])) return ['rim'];
       if (hasAny(command, ['roda', 'wheel'])) return ['wheel', 'rim'];
@@ -1402,7 +1413,7 @@
         { keys: ['vermelho', 'red'], hex: '#d71920', name: 'vermelho' },
         { keys: ['azul', 'blue'], hex: '#1d5fd3', name: 'azul' },
         { keys: ['branco', 'white'], hex: '#eceae4', name: 'branco' },
-        { keys: ['preto', 'black'], hex: '#07080a', name: 'preto' },
+        { keys: ['preto', 'preo', 'black', 'fume', 'escuro'], hex: '#07080a', name: 'preto fume' },
         { keys: ['cinza', 'gray', 'grey'], hex: '#8d9298', name: 'cinza' },
         { keys: ['prata', 'silver'], hex: '#c8ccd0', name: 'prata' },
         { keys: ['amarelo', 'yellow'], hex: '#ffd23f', name: 'amarelo' },

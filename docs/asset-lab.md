@@ -36,6 +36,7 @@ The large chat at the bottom of the 3D viewer accepts Portuguese commands and ap
 - `pinta de vermelho`
 - `pinta farol azul`
 - `pinta vidro preto`
+- `vidros fume`
 - `pinta roda preta`
 - `pinta tudo de amarelo`
 - `pinta de azul`
@@ -48,7 +49,7 @@ The large chat at the bottom of the 3D viewer accepts Portuguese commands and ap
 - `checa status`
 - `ver GLB gerado`
 
-Local commands change the model instantly in the viewer. Meshy commands create or check Retexture tasks through the local server.
+Local commands change the model instantly in the viewer. Meshy commands are protected: if the chat detects a Meshy/Retexture request, it prepares the prompt but does not spend credits until the user types `confirmar meshy`.
 
 ## Part Understanding
 
